@@ -19,6 +19,7 @@ export default function App() {
     gameState,
     analysis,
     squareHighlights,
+    optimalFromSquare,
     counteringEnabled,
     isAiThinking,
     onPlayerMove,
@@ -95,6 +96,7 @@ export default function App() {
                 fen={gameState.fen}
                 boardOrientation={userPlays}
                 squareHighlights={squareHighlights}
+                optimalFromSquare={optimalFromSquare}
                 isPlayerTurn={gameState.isPlayerTurn}
                 isAiThinking={isAiThinking}
                 onPieceDrop={onPlayerMove}

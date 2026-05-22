@@ -55,7 +55,7 @@ export interface ImportOpeningRequest {
 }
 
 export type SquareHighlight = {
-  [square: string]: { background: string; borderRadius?: string };
+  [square: string]: { background?: string; borderRadius?: string; boxShadow?: string };
 };
 
 export interface GameState {
