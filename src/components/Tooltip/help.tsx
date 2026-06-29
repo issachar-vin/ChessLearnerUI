@@ -102,9 +102,9 @@ export const HELP: Record<string, Help> = {
     title: "Autoplay",
     body: (
       <p>
-        Plays your opening-line moves automatically so the line runs itself out. Toggle off any time
-        to take over and try a custom move. With it off, the ▶ button steps the same move one at a
-        time. It stops once the opening is complete.
+        Plays your moves automatically so the opening runs itself out — the line step when it's
+        playable, otherwise the recommended move. Toggle off any time to take over with a custom
+        move. With it off, the ▶ button steps the same move one at a time.
       </p>
     ),
   },
