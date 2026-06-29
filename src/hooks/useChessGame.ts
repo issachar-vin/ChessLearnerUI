@@ -319,10 +319,12 @@ export function useChessGame(
         arrows.push([uci.slice(0, 2), uci.slice(2, 4), color]);
       }
     };
-    if (previewVisibility.recommended) add(analysis.recommended.uci, ARROW_COLORS.recommended);
+    // Mode arrows first; recommended is drawn last so it stays on top when two
+    // sources point at the same square (e.g. off-book, recommended == challenge).
     if (previewVisibility.guided) add(analysis.previews.guided.uci, ARROW_COLORS.guided);
     if (previewVisibility.sparring) add(analysis.previews.sparring.uci, ARROW_COLORS.sparring);
     if (previewVisibility.challenge) add(analysis.previews.challenge.uci, ARROW_COLORS.challenge);
+    if (previewVisibility.recommended) add(analysis.recommended.uci, ARROW_COLORS.recommended);
     return arrows;
   }, [analysis, previewVisibility, snapshot.fen]);
 
