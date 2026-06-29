@@ -20,8 +20,16 @@ export default function App() {
 
   const game = useChessGame(selectedOpeningId, mode, strict, userSide);
 
+  // A line ends on its characteristic move, so ply-count parity gives the side
+  // the opening belongs to: odd plies → White moved last, even → Black.
+  const handleSelect = (id: string) => {
+    setSelectedOpeningId(id);
+    const item = openings.find((o) => o.id === id);
+    if (item) setUserSide(item.move_count % 2 === 1 ? "white" : "black");
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="h-screen overflow-hidden bg-slate-950 text-slate-100 flex flex-col">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -41,8 +49,8 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 flex max-w-7xl mx-auto w-full gap-0">
-        <aside className="w-72 shrink-0 flex flex-col border-r border-slate-800/60 bg-slate-900/30">
+      <main className="flex-1 min-h-0 flex max-w-7xl mx-auto w-full gap-0">
+        <aside className="w-72 shrink-0 flex flex-col min-h-0 border-r border-slate-800/60 bg-slate-900/30">
           <div className="px-4 pt-4 pb-2 flex items-center justify-between">
             <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Select Opening
@@ -65,13 +73,13 @@ export default function App() {
             openings={openings}
             loading={loading}
             selectedId={selectedOpeningId}
-            onSelect={setSelectedOpeningId}
+            onSelect={handleSelect}
             search={search}
             onSearchChange={setSearch}
           />
         </aside>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8 py-8">
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start gap-5 px-8 py-8">
           {!selectedOpeningId ? (
             <div className="text-center animate-fade-in">
               <div className="text-6xl mb-4 opacity-20">♟</div>
@@ -113,7 +121,7 @@ export default function App() {
           )}
         </div>
 
-        <aside className="w-72 shrink-0 flex flex-col border-l border-slate-800/60 bg-slate-900/30 p-4">
+        <aside className="w-72 shrink-0 flex flex-col min-h-0 overflow-hidden border-l border-slate-800/60 bg-slate-900/30 p-4">
           <MoveList
             history={game.history}
             pointer={game.pointer}

@@ -52,7 +52,18 @@ export function OpeningSelector({
                 >
                   {o.eco}
                 </span>
-                <span className="text-[10px] text-slate-600">{o.move_count} moves</span>
+                <span className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                  <span
+                    className={`px-1 rounded font-semibold ${
+                      o.move_count % 2 === 1
+                        ? "bg-slate-200/90 text-slate-900"
+                        : "bg-slate-700 text-slate-100"
+                    }`}
+                  >
+                    {o.move_count % 2 === 1 ? "W" : "B"}
+                  </span>
+                  {o.move_count} moves
+                </span>
               </div>
               <div
                 className={`text-sm font-medium mt-0.5 ${
