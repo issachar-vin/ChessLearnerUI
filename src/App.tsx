@@ -2,37 +2,23 @@ import { useState } from "react";
 import { Toaster } from "react-hot-toast";
 import { ChessBoard } from "./components/Board/ChessBoard";
 import { Controls } from "./components/Controls/Controls";
-import { ImportOpening } from "./components/ImportOpening/ImportOpening";
 import { MoveList } from "./components/MoveList/MoveList";
 import { OpeningSelector } from "./components/OpeningSelector/OpeningSelector";
 import { useChessGame } from "./hooks/useChessGame";
 import { useOpening, useOpenings } from "./hooks/useOpenings";
+import type { Mode, Side } from "./types/chess";
 
 export default function App() {
   const [selectedOpeningId, setSelectedOpeningId] = useState<string | null>(null);
-  const { openings, loading, refetch } = useOpenings();
+  const [search, setSearch] = useState("");
+  const [mode, setMode] = useState<Mode>("sparring");
+  const [strict, setStrict] = useState(true);
+  const [userSide, setUserSide] = useState<Side>("white");
+
+  const { openings, loading } = useOpenings(search);
   const { opening } = useOpening(selectedOpeningId);
 
-  const userPlays = opening?.user_plays ?? "white";
-
-  const {
-    gameState,
-    analysis,
-    squareHighlights,
-    optimalFromSquare,
-    counteringEnabled,
-    isAiThinking,
-    onPlayerMove,
-    onPieceDragBegin,
-    onPieceDragEnd,
-    onSquareClick,
-    setCounteringEnabled,
-    reset,
-  } = useChessGame(selectedOpeningId, userPlays);
-
-  const handleSelectOpening = (id: string) => {
-    setSelectedOpeningId(id);
-  };
+  const game = useChessGame(selectedOpeningId, mode, strict, userSide);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
@@ -43,7 +29,6 @@ export default function App() {
         }}
       />
 
-      {/* Header */}
       <header className="border-b border-slate-800/60 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center gap-3">
           <div className="text-2xl select-none">♞</div>
@@ -56,73 +41,85 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main layout */}
       <main className="flex-1 flex max-w-7xl mx-auto w-full gap-0">
-        {/* Sidebar — opening selector */}
         <aside className="w-72 shrink-0 flex flex-col border-r border-slate-800/60 bg-slate-900/30">
-          <div className="px-4 pt-4 pb-2">
+          <div className="px-4 pt-4 pb-2 flex items-center justify-between">
             <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Select Opening
             </h2>
+            <div className="inline-flex rounded-md border border-slate-700/60 overflow-hidden text-xs">
+              {(["white", "black"] as Side[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setUserSide(s)}
+                  className={`px-2 py-1 capitalize ${
+                    userSide === s ? "bg-purple-600/40 text-white" : "text-slate-400"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
           <OpeningSelector
             openings={openings}
             loading={loading}
             selectedId={selectedOpeningId}
-            onSelect={handleSelectOpening}
+            onSelect={setSelectedOpeningId}
+            search={search}
+            onSearchChange={setSearch}
           />
-          <ImportOpening onImported={() => void refetch()} />
         </aside>
 
-        {/* Center — board */}
         <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8 py-8">
           {!selectedOpeningId ? (
             <div className="text-center animate-fade-in">
               <div className="text-6xl mb-4 opacity-20">♟</div>
               <h2 className="text-xl font-semibold text-slate-400">Select an opening to begin</h2>
-              <p className="text-slate-600 text-sm mt-2">
-                Choose from the sidebar or import your own PGN
-              </p>
+              <p className="text-slate-600 text-sm mt-2">Search and pick a line from the sidebar</p>
             </div>
           ) : (
             <>
               <Controls
-                counteringEnabled={counteringEnabled}
-                onToggleCountering={setCounteringEnabled}
-                onReset={reset}
-                isPlaying={gameState.status === "playing"}
+                mode={mode}
+                onModeChange={setMode}
+                strict={strict}
+                onStrictChange={setStrict}
+                canUndo={game.canUndo}
+                canRedo={game.canRedo}
+                onUndo={game.undo}
+                onRedo={game.redo}
+                onReset={game.reset}
+                previewVisibility={game.previewVisibility}
+                onPreviewChange={game.setPreviewVisibility}
               />
               <ChessBoard
-                fen={gameState.fen}
-                boardOrientation={userPlays}
-                squareHighlights={squareHighlights}
-                optimalFromSquare={optimalFromSquare}
-                isPlayerTurn={gameState.isPlayerTurn}
-                isAiThinking={isAiThinking}
-                onPieceDrop={onPlayerMove}
-                onPieceDragBegin={onPieceDragBegin}
-                onPieceDragEnd={onPieceDragEnd}
-                onSquareClick={onSquareClick}
+                fen={game.fen}
+                boardOrientation={userSide}
+                squareHighlights={game.squareHighlights}
+                customArrows={game.previewArrows}
+                isAiThinking={game.isAiThinking}
+                onPieceDrop={game.onPieceDrop}
+                onSquareClick={game.onSquareClick}
               />
               <div className="text-xs text-slate-600 text-center">
-                {gameState.isPlayerTurn
-                  ? isAiThinking
-                    ? ""
-                    : `Your turn — playing as ${userPlays}`
-                  : "Opponent is thinking..."}
+                {game.isAiThinking
+                  ? "Opponent is thinking…"
+                  : game.isUserTurn
+                    ? `Your turn — playing as ${userSide}`
+                    : "Move a piece for either side, or press ▶"}
               </div>
             </>
           )}
         </div>
 
-        {/* Right panel — moves + hints */}
         <aside className="w-72 shrink-0 flex flex-col border-l border-slate-800/60 bg-slate-900/30 p-4">
           <MoveList
-            moveHistory={gameState.moveHistory}
-            analysis={analysis}
-            isInOpening={gameState.isInOpening}
-            openingName={opening?.name ?? null}
-            openingDescription={opening?.description ?? null}
+            history={game.history}
+            pointer={game.pointer}
+            onJump={game.jumpTo}
+            analysis={game.analysis}
+            trainingName={opening?.name ?? null}
           />
         </aside>
       </main>

@@ -1,297 +1,312 @@
 import { Chess } from "chess.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import { api } from "../services/api";
-import type { AnalyzeResponse, GameState, SquareHighlight } from "../types/chess";
+import type {
+  AnalyzeResponse,
+  HistMove,
+  Mode,
+  Side,
+  SquareHighlight,
+} from "../types/chess";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const AI_MOVE_DELAY_MS = 350;
 
-// Square outline styles (borders instead of filled circles)
-const COLORS = {
+export const ARROW_COLORS: Record<"recommended" | Mode, string> = {
+  recommended: "#10b981", // emerald — the move to play
+  guided: "#3b82f6", // blue
+  sparring: "#f59e0b", // amber
+  challenge: "#a855f7", // purple
+};
+
+const SQUARE_COLORS = {
   legalMove: "inset 0 0 0 3px rgba(127, 201, 127, 0.85)",
   legalCapture: "inset 0 0 0 4px rgba(80, 200, 80, 1)",
-  optimal: "inset 0 0 0 4px rgba(155, 89, 182, 1)",
-  counter: "inset 0 0 0 3px rgba(231, 76, 60, 0.8)",
   lastMove: "rgba(246, 246, 105, 0.45)",
   selected: "rgba(246, 246, 105, 0.65)",
 };
 
-function uciToSquares(uci: string): { from: string; to: string } {
+export interface PreviewVisibility {
+  recommended: boolean;
+  guided: boolean;
+  sparring: boolean;
+  challenge: boolean;
+}
+
+type Sq = Parameters<Chess["get"]>[0];
+
+function uciFromTo(uci: string): { from: string; to: string } {
   return { from: uci.slice(0, 2), to: uci.slice(2, 4) };
 }
 
-export function useChessGame(openingId: string | null, userPlays: "white" | "black") {
-  const [gameState, setGameState] = useState<GameState>({
-    fen: STARTING_FEN,
-    movesPlayed: [],
-    moveHistory: [],
-    isPlayerTurn: userPlays === "white",
-    isInOpening: true,
-    openingMoveIndex: -1,
-    lastAiMove: null,
-    status: "idle",
-  });
+function buildBoard(history: HistMove[], upto: number): Chess {
+  const chess = new Chess();
+  for (let i = 0; i < upto; i++) {
+    const { from, to } = uciFromTo(history[i].uci);
+    chess.move({ from, to, promotion: history[i].uci.slice(4, 5) || "q" });
+  }
+  return chess;
+}
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export function useChessGame(
+  openingId: string | null,
+  mode: Mode,
+  strict: boolean,
+  userSide: Side,
+) {
+  // Refs are the source of truth; `snapshot` is the render projection of them.
+  const chessRef = useRef(new Chess());
+  const historyRef = useRef<HistMove[]>([]);
+  const pointerRef = useRef(0);
+
+  const [snapshot, setSnapshot] = useState({
+    fen: STARTING_FEN,
+    turn: "w" as "w" | "b",
+    pointer: 0,
+    length: 0,
+    lastMove: null as string | null,
+  });
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
-  const [counteringEnabled, setCounteringEnabled] = useState(true);
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [previewVisibility, setPreviewVisibility] = useState<PreviewVisibility>({
+    recommended: true,
+    guided: false,
+    sparring: false,
+    challenge: false,
+  });
 
-  const chessRef = useRef(new Chess());
-  const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Mirror the latest props into a ref so move handlers never read stale values.
+  const cfg = useRef({ openingId, mode, strict, userSide, analysis });
+  cfg.current = { openingId, mode, strict, userSide, analysis };
 
-  // --- Derived square highlights via useMemo ---
-  // This is the key fix: highlights are always in sync with analysis + selection.
-  // Nothing can drift because they're computed, not stored separately.
-  const squareHighlights = useMemo((): SquareHighlight => {
-    const highlights: SquareHighlight = {};
-    const chess = chessRef.current;
+  const userChar = userSide === "white" ? "w" : "b";
 
-    // Last AI move (yellow background)
-    if (gameState.lastAiMove) {
-      const { from, to } = uciToSquares(gameState.lastAiMove);
-      highlights[from] = { background: COLORS.lastMove };
-      highlights[to] = { background: COLORS.lastMove };
+  const sync = useCallback((lastMove: string | null) => {
+    setSnapshot({
+      fen: chessRef.current.fen(),
+      turn: chessRef.current.turn(),
+      pointer: pointerRef.current,
+      length: historyRef.current.length,
+      lastMove,
+    });
+  }, []);
+
+  const fetchAnalysis = useCallback(async () => {
+    if (!cfg.current.openingId) return;
+    const moves = historyRef.current.slice(0, pointerRef.current).map((m) => m.uci);
+    try {
+      const res = await api.game.analyze({
+        fen: chessRef.current.fen(),
+        moves_played: moves,
+        opening_id: cfg.current.openingId,
+      });
+      setAnalysis(res);
+    } catch {
+      setAnalysis(null);
     }
+  }, []);
 
-    // Optimal theory / Stockfish move — purple outline on the destination square
-    if (analysis?.optimal_move) {
-      const { to } = uciToSquares(analysis.optimal_move);
-      highlights[to] = { background: "transparent", boxShadow: COLORS.optimal };
-    }
-
-    // Expected counter — red outline on from+to squares
-    if (analysis?.counter_move) {
-      const { from: cf, to: ct } = uciToSquares(analysis.counter_move);
-      highlights[cf] = { background: "transparent", boxShadow: COLORS.counter };
-      highlights[ct] = { background: "transparent", boxShadow: COLORS.counter };
-    }
-
-    // Selected piece highlight
-    if (selectedSquare) {
-      highlights[selectedSquare] = { background: COLORS.selected };
-
-      // Legal move destinations — square outline
-      const legalForPiece = chess
-        .moves({ square: selectedSquare as Parameters<Chess["moves"]>[0]["square"], verbose: true })
-        .map((m) => m.to);
-
-      for (const sq of legalForPiece) {
-        const isCapture = !!chess.get(sq as Parameters<Chess["get"]>[0]);
-        highlights[sq] = {
-          background: "transparent",
-          boxShadow: isCapture ? COLORS.legalCapture : COLORS.legalMove,
-        };
+  const triggerAiMove = useCallback(async () => {
+    const { openingId: oid, mode: m } = cfg.current;
+    const fen = chessRef.current.fen();
+    const moves = historyRef.current.slice(0, pointerRef.current).map((mm) => mm.uci);
+    setIsAiThinking(true);
+    try {
+      const res = await api.game.aiMove({
+        fen,
+        moves_played: moves,
+        mode: m,
+        opening_id: oid,
+      });
+      if (!res.move) {
+        setIsAiThinking(false);
+        return;
       }
+      await sleep(AI_MOVE_DELAY_MS);
+      const applied = chessRef.current.move({
+        from: res.move.slice(0, 2),
+        to: res.move.slice(2, 4),
+        promotion: res.move.slice(4, 5) || "q",
+      });
+      if (!applied) {
+        setIsAiThinking(false);
+        return;
+      }
+      historyRef.current = historyRef.current.slice(0, pointerRef.current);
+      historyRef.current.push({ san: applied.san, uci: applied.lan });
+      pointerRef.current += 1;
+      setIsAiThinking(false);
+      sync(applied.lan);
+    } catch {
+      setIsAiThinking(false);
     }
-
-    return highlights;
-  }, [analysis, selectedSquare, gameState.lastAiMove]);
-
-  // The piece the optimal move originates from — highlighted with purple ring in ChessBoard
-  const optimalFromSquare = useMemo((): string | null => {
-    if (!analysis?.optimal_move) return null;
-    return analysis.optimal_move.slice(0, 2);
-  }, [analysis]);
-
-  // Reset when opening changes
-  useEffect(() => {
-    reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openingId, userPlays]);
+  }, [sync]);
 
   const reset = useCallback(() => {
-    if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current);
     chessRef.current = new Chess();
-    setGameState({
-      fen: STARTING_FEN,
-      movesPlayed: [],
-      moveHistory: [],
-      isPlayerTurn: userPlays === "white",
-      isInOpening: true,
-      openingMoveIndex: -1,
-      lastAiMove: null,
-      status: openingId ? "playing" : "idle",
-    });
+    historyRef.current = [];
+    pointerRef.current = 0;
     setAnalysis(null);
     setSelectedSquare(null);
     setIsAiThinking(false);
-  }, [openingId, userPlays]);
+    sync(null);
+    // If the learner plays the second-moving side, the opponent opens the game.
+    if (openingId && chessRef.current.turn() !== userChar) {
+      void triggerAiMove();
+    }
+  }, [openingId, userChar, sync, triggerAiMove]);
 
-  const fetchAnalysis = useCallback(
-    async (fen: string, moves: string[]) => {
-      if (!openingId) return;
-      try {
-        const result = await api.game.analyze({
-          opening_id: openingId,
-          fen,
-          moves_played: moves,
-          countering_enabled: counteringEnabled,
-        });
-        setAnalysis(result);
-      } catch {
-        setAnalysis(null);
-      }
-    },
-    [openingId, counteringEnabled]
-  );
-
-  // Fetch analysis whenever position changes and it's the player's turn.
-  // squareHighlights auto-updates via useMemo — no manual setSquareHighlights needed.
   useEffect(() => {
-    if (!openingId || !gameState.isPlayerTurn) return;
-    void fetchAnalysis(gameState.fen, gameState.movesPlayed);
-  }, [gameState.fen, gameState.isPlayerTurn, gameState.movesPlayed, openingId, counteringEnabled, fetchAnalysis]);
+    reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openingId, userSide]);
 
-  const triggerAiMove = useCallback(
-    async (fen: string, moves: string[]) => {
-      if (!openingId) return;
-      setIsAiThinking(true);
-      try {
-        const result = await api.game.aiMove({
-          opening_id: openingId,
-          fen,
-          moves_played: moves,
-          countering_enabled: counteringEnabled,
-        });
+  // Refresh hints/previews whenever it lands on the learner's turn.
+  useEffect(() => {
+    if (!openingId || isAiThinking) return;
+    if (snapshot.turn !== userChar) return;
+    void fetchAnalysis();
+  }, [snapshot.fen, snapshot.turn, openingId, isAiThinking, userChar, fetchAnalysis]);
 
-        if (!result.move) {
-          setIsAiThinking(false);
-          return;
+  const applyMove = useCallback(
+    (from: string, to: string): boolean => {
+      if (isAiThinking) return false;
+      const movedSide = chessRef.current.turn();
+      const { mode: m, strict: s, analysis: a } = cfg.current;
+
+      if (m === "guided" && s && movedSide === userChar) {
+        const lineUci = a?.previews.guided.uci;
+        if (lineUci && `${from}${to}` !== lineUci) {
+          toast("Off the line — follow the highlighted move");
+          return false;
         }
-
-        aiTimeoutRef.current = setTimeout(() => {
-          setGameState((prev) => {
-            const chess = chessRef.current;
-            try {
-              chess.move({
-                from: result.move!.slice(0, 2),
-                to: result.move!.slice(2, 4),
-                promotion: "q",
-              });
-            } catch {
-              return prev;
-            }
-            const newFen = chess.fen();
-            const newMoves = [...prev.movesPlayed, result.move!];
-            const newHistory = [
-              ...prev.moveHistory,
-              { san: result.move_san ?? result.move!, uci: result.move! },
-            ];
-            return {
-              ...prev,
-              fen: newFen,
-              movesPlayed: newMoves,
-              moveHistory: newHistory,
-              isPlayerTurn: true,
-              lastAiMove: result.move,
-              isInOpening: result.is_in_opening,
-            };
-          });
-          setIsAiThinking(false);
-        }, 500);
-      } catch {
-        setIsAiThinking(false);
       }
-    },
-    [openingId, counteringEnabled]
-  );
 
-  const onPlayerMove = useCallback(
-    (sourceSquare: string, targetSquare: string): boolean => {
-      const chess = chessRef.current;
+      let applied;
       try {
-        const move = chess.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
-        if (!move) return false;
-
-        const newFen = chess.fen();
-        const newUci = `${sourceSquare}${targetSquare}`;
-
-        setGameState((prev) => {
-          const newMoves = [...prev.movesPlayed, newUci];
-          return {
-            ...prev,
-            fen: newFen,
-            movesPlayed: newMoves,
-            moveHistory: [...prev.moveHistory, { san: move.san, uci: newUci }],
-            isPlayerTurn: false,
-            lastAiMove: null,
-          };
-        });
-
-        setSelectedSquare(null);
-        setAnalysis(null); // clear stale hint immediately; new one loads after AI moves
-
-        void triggerAiMove(newFen, [...gameState.movesPlayed, newUci]);
-        return true;
+        applied = chessRef.current.move({ from, to, promotion: "q" });
       } catch {
         return false;
       }
+      if (!applied) return false;
+
+      historyRef.current = historyRef.current.slice(0, pointerRef.current);
+      historyRef.current.push({ san: applied.san, uci: applied.lan });
+      pointerRef.current += 1;
+      setSelectedSquare(null);
+      setAnalysis(null);
+      sync(applied.lan);
+
+      // The opponent only replies when the learner moves their own colour.
+      if (movedSide === userChar) {
+        void triggerAiMove();
+      }
+      return true;
     },
-    [gameState.movesPlayed, triggerAiMove]
+    [isAiThinking, userChar, sync, triggerAiMove],
   );
 
-  const onPieceDragBegin = useCallback(
-    (_piece: string, sourceSquare: string) => {
-      if (!gameState.isPlayerTurn) return;
-      setSelectedSquare(sourceSquare);
+  const navigate = useCallback(
+    (to: number) => {
+      const clamped = Math.max(0, Math.min(historyRef.current.length, to));
+      chessRef.current = buildBoard(historyRef.current, clamped);
+      pointerRef.current = clamped;
+      setSelectedSquare(null);
+      sync(clamped > 0 ? historyRef.current[clamped - 1].uci : null);
     },
-    [gameState.isPlayerTurn]
+    [sync],
   );
 
-  const onPieceDragEnd = useCallback(() => {
-    setSelectedSquare(null);
-  }, []);
+  const undo = useCallback(() => navigate(pointerRef.current - 1), [navigate]);
+  const redo = useCallback(() => navigate(pointerRef.current + 1), [navigate]);
+  const jumpTo = useCallback((ply: number) => navigate(ply), [navigate]);
+
+  const onPieceDrop = useCallback(
+    (source: string, target: string) => applyMove(source, target),
+    [applyMove],
+  );
 
   const onSquareClick = useCallback(
     (square: string) => {
-      if (!gameState.isPlayerTurn || isAiThinking) return;
-
+      if (isAiThinking) return;
+      const piece = chessRef.current.get(square as Sq);
       if (selectedSquare) {
         if (selectedSquare === square) {
           setSelectedSquare(null);
           return;
         }
-        const moved = onPlayerMove(selectedSquare, square);
+        const moved = applyMove(selectedSquare, square);
         if (!moved) {
-          // Try selecting a different piece instead
-          const piece = chessRef.current.get(square as Parameters<Chess["get"]>[0]);
-          setSelectedSquare(piece ? square : null);
+          setSelectedSquare(piece && piece.color === chessRef.current.turn() ? square : null);
         }
-      } else {
-        const piece = chessRef.current.get(square as Parameters<Chess["get"]>[0]);
-        if (piece) setSelectedSquare(square);
+      } else if (piece && piece.color === chessRef.current.turn()) {
+        setSelectedSquare(square);
       }
     },
-    [gameState.isPlayerTurn, isAiThinking, selectedSquare, onPlayerMove]
+    [isAiThinking, selectedSquare, applyMove],
   );
 
-  // If user plays black, trigger AI's first move
-  useEffect(() => {
-    if (
-      openingId &&
-      userPlays === "black" &&
-      gameState.status === "playing" &&
-      gameState.movesPlayed.length === 0 &&
-      !isAiThinking
-    ) {
-      void triggerAiMove(STARTING_FEN, []);
+  const squareHighlights = useMemo((): SquareHighlight => {
+    const highlights: SquareHighlight = {};
+    if (snapshot.lastMove) {
+      const { from, to } = uciFromTo(snapshot.lastMove);
+      highlights[from] = { background: SQUARE_COLORS.lastMove };
+      highlights[to] = { background: SQUARE_COLORS.lastMove };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openingId, userPlays, gameState.status]);
+    if (selectedSquare) {
+      highlights[selectedSquare] = { background: SQUARE_COLORS.selected };
+      const legal = chessRef.current
+        .moves({ square: selectedSquare as Sq, verbose: true })
+        .map((mv) => mv.to);
+      for (const sq of legal) {
+        const isCapture = !!chessRef.current.get(sq as Sq);
+        highlights[sq] = {
+          background: "transparent",
+          boxShadow: isCapture ? SQUARE_COLORS.legalCapture : SQUARE_COLORS.legalMove,
+        };
+      }
+    }
+    return highlights;
+  }, [snapshot.lastMove, selectedSquare]);
+
+  const previewArrows = useMemo((): [string, string, string][] => {
+    if (!analysis) return [];
+    const arrows: [string, string, string][] = [];
+    const add = (uci: string | null, color: string) => {
+      if (uci) arrows.push([uci.slice(0, 2), uci.slice(2, 4), color]);
+    };
+    if (previewVisibility.recommended) add(analysis.recommended.uci, ARROW_COLORS.recommended);
+    if (previewVisibility.guided) add(analysis.previews.guided.uci, ARROW_COLORS.guided);
+    if (previewVisibility.sparring) add(analysis.previews.sparring.uci, ARROW_COLORS.sparring);
+    if (previewVisibility.challenge) add(analysis.previews.challenge.uci, ARROW_COLORS.challenge);
+    return arrows;
+  }, [analysis, previewVisibility]);
+
+  const isUserTurn = snapshot.turn === userChar;
 
   return {
-    gameState,
+    fen: snapshot.fen,
+    history: historyRef.current,
+    pointer: snapshot.pointer,
+    length: snapshot.length,
+    isUserTurn,
+    isAiThinking,
     analysis,
     squareHighlights,
-    optimalFromSquare,
-    selectedSquare,
-    counteringEnabled,
-    isAiThinking,
-    onPlayerMove,
-    onPieceDragBegin,
-    onPieceDragEnd,
+    previewArrows,
+    previewVisibility,
+    setPreviewVisibility,
+    canUndo: snapshot.pointer > 0,
+    canRedo: snapshot.pointer < snapshot.length,
+    onPieceDrop,
     onSquareClick,
-    setCounteringEnabled,
+    undo,
+    redo,
+    jumpTo,
     reset,
   };
 }
