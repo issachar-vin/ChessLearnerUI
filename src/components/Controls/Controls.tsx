@@ -1,49 +1,134 @@
+import { ARROW_COLORS, type PreviewVisibility } from "../../hooks/useChessGame";
+import type { Mode } from "../../types/chess";
+
 interface Props {
-  counteringEnabled: boolean;
-  onToggleCountering: (val: boolean) => void;
+  mode: Mode;
+  onModeChange: (m: Mode) => void;
+  strict: boolean;
+  onStrictChange: (b: boolean) => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
   onReset: () => void;
-  isPlaying: boolean;
+  previewVisibility: PreviewVisibility;
+  onPreviewChange: (v: PreviewVisibility) => void;
 }
 
-export function Controls({ counteringEnabled, onToggleCountering, onReset, isPlaying }: Props) {
+const MODES: { key: Mode; label: string; hint: string }[] = [
+  { key: "guided", label: "Guided", hint: "Opponent follows the opening line" },
+  { key: "sparring", label: "Sparring", hint: "Opponent plays the most common move" },
+  { key: "challenge", label: "Challenge", hint: "Opponent plays the engine's best move" },
+];
+
+const PREVIEW_KEYS: { key: keyof PreviewVisibility; label: string; color: string }[] = [
+  { key: "recommended", label: "Recommended", color: ARROW_COLORS.recommended },
+  { key: "guided", label: "Guided", color: ARROW_COLORS.guided },
+  { key: "sparring", label: "Sparring", color: ARROW_COLORS.sparring },
+  { key: "challenge", label: "Challenge", color: ARROW_COLORS.challenge },
+];
+
+export function Controls({
+  mode,
+  onModeChange,
+  strict,
+  onStrictChange,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onReset,
+  previewVisibility,
+  onPreviewChange,
+}: Props) {
+  const activeHint = MODES.find((m) => m.key === mode)?.hint;
+  const togglePreview = (key: keyof PreviewVisibility) =>
+    onPreviewChange({ ...previewVisibility, [key]: !previewVisibility[key] });
+
   return (
-    <div className="flex items-center gap-3 flex-wrap">
-      {/* Counter mode toggle */}
-      <button
-        onClick={() => onToggleCountering(!counteringEnabled)}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border ${
-          counteringEnabled
-            ? "bg-red-500/20 border-red-500/40 text-red-300 hover:bg-red-500/30"
-            : "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30"
-        }`}
-      >
-        <span className={`w-2 h-2 rounded-full ${counteringEnabled ? "bg-red-400" : "bg-emerald-400"}`} />
-        {counteringEnabled ? "Counter Mode: ON" : "Practice Mode: ON"}
-      </button>
+    <div className="flex flex-col items-center gap-2">
+      <div className="flex items-center gap-3 flex-wrap justify-center">
+        {/* Mode segmented control */}
+        <div className="inline-flex rounded-lg border border-slate-700/60 overflow-hidden">
+          {MODES.map((m) => (
+            <button
+              key={m.key}
+              onClick={() => onModeChange(m.key)}
+              className={`px-3 py-2 text-sm font-medium transition-colors ${
+                mode === m.key
+                  ? "bg-purple-600/40 text-white"
+                  : "text-slate-400 hover:bg-slate-700/40"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
 
-      {/* Reset */}
-      <button
-        onClick={onReset}
-        disabled={!isPlaying}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-slate-600/50 text-slate-300 hover:bg-slate-700/50 hover:text-white transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-          />
-        </svg>
-        Reset
-      </button>
+        {/* Guided strict toggle */}
+        {mode === "guided" && (
+          <button
+            onClick={() => onStrictChange(!strict)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              strict
+                ? "bg-blue-500/20 border-blue-500/40 text-blue-300"
+                : "border-slate-600/50 text-slate-400 hover:bg-slate-700/50"
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${strict ? "bg-blue-400" : "bg-slate-500"}`} />
+            Strict
+          </button>
+        )}
 
-      {/* Mode description */}
-      <span className="text-xs text-slate-500 ml-1">
-        {counteringEnabled
-          ? "Opponent will try to beat you"
-          : "Opponent plays into the opening"}
-      </span>
+        {/* Undo / redo */}
+        <div className="inline-flex rounded-lg border border-slate-700/60 overflow-hidden">
+          <button
+            onClick={onUndo}
+            disabled={!canUndo}
+            aria-label="Undo move"
+            className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            ◀
+          </button>
+          <button
+            onClick={onRedo}
+            disabled={!canRedo}
+            aria-label="Redo move"
+            className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed border-l border-slate-700/60"
+          >
+            ▶
+          </button>
+        </div>
+
+        {/* Reset */}
+        <button
+          onClick={onReset}
+          className="px-3 py-2 rounded-lg text-sm font-medium border border-slate-600/50 text-slate-300 hover:bg-slate-700/50"
+        >
+          Reset
+        </button>
+      </div>
+
+      {/* Preview toggles */}
+      <div className="flex items-center gap-2 flex-wrap justify-center">
+        <span className="text-xs text-slate-500 uppercase tracking-wider">Previews</span>
+        {PREVIEW_KEYS.map(({ key, label, color }) => (
+          <button
+            key={key}
+            onClick={() => togglePreview(key)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+              previewVisibility[key]
+                ? "border-slate-500 bg-slate-700/50 text-white"
+                : "border-slate-700/60 text-slate-500 hover:bg-slate-700/30"
+            }`}
+          >
+            <span className="inline-block w-3.5 border-t-2" style={{ borderColor: color }} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeHint && <span className="text-xs text-slate-500">{activeHint}</span>}
     </div>
   );
 }

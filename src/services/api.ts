@@ -1,7 +1,7 @@
 import type {
   AIMoveResponse,
   AnalyzeResponse,
-  ImportOpeningRequest,
+  Mode,
   Opening,
   OpeningListItem,
 } from "../types/chess";
@@ -22,34 +22,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   openings: {
-    list: () => request<OpeningListItem[]>("/openings"),
+    list: (search?: string, limit = 100) => {
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (search) params.set("search", search);
+      return request<OpeningListItem[]>(`/openings?${params.toString()}`);
+    },
     get: (id: string) => request<Opening>(`/openings/${id}`),
-    import: (data: ImportOpeningRequest) =>
-      request<{ id: string; message: string }>("/openings/import", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-    delete: (id: string) =>
-      fetch(`${BASE_URL}/api/openings/${id}`, { method: "DELETE" }),
   },
 
   game: {
-    analyze: (params: {
-      opening_id: string;
-      fen: string;
-      moves_played: string[];
-      countering_enabled: boolean;
-    }) =>
+    analyze: (params: { fen: string; moves_played: string[]; opening_id: string | null }) =>
       request<AnalyzeResponse>("/game/analyze", {
         method: "POST",
         body: JSON.stringify(params),
       }),
 
     aiMove: (params: {
-      opening_id: string;
       fen: string;
       moves_played: string[];
-      countering_enabled: boolean;
+      mode: Mode;
+      opening_id: string | null;
     }) =>
       request<AIMoveResponse>("/game/ai-move", {
         method: "POST",

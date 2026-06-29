@@ -1,70 +1,64 @@
+export type Mode = "guided" | "sparring" | "challenge";
+export type Side = "white" | "black";
+
 export interface MoveEntry {
   ply: number;
   san: string;
   uci: string;
   fen: string;
-  comment: string | null;
-  is_main_line: boolean;
-}
-
-export interface Opening {
-  id: string;
-  eco: string;
-  name: string;
-  description: string | null;
-  pgn: string;
-  user_plays: "white" | "black";
-  moves: MoveEntry[];
-  tags: string[];
 }
 
 export interface OpeningListItem {
   id: string;
   eco: string;
   name: string;
-  description: string | null;
-  user_plays: "white" | "black";
-  tags: string[];
   move_count: number;
 }
 
+export interface Opening {
+  id: string;
+  eco: string;
+  name: string;
+  pgn: string;
+  moves: MoveEntry[];
+}
+
+export interface MoveOption {
+  uci: string | null;
+  san: string | null;
+}
+
+export interface ModePreviews {
+  guided: MoveOption;
+  sparring: MoveOption;
+  challenge: MoveOption;
+}
+
 export interface AnalyzeResponse {
-  is_in_opening: boolean;
-  optimal_move: string | null;
-  optimal_move_san: string | null;
-  counter_move: string | null;
-  counter_move_san: string | null;
+  recommended: MoveOption;
+  previews: ModePreviews;
   legal_moves: string[];
-  opening_move_index: number;
-  message: string | null;
+  on_line: boolean;
+  in_book: boolean;
+  eco: string | null;
+  name: string | null;
 }
 
 export interface AIMoveResponse {
   move: string | null;
   move_san: string | null;
-  is_in_opening: boolean;
+  previews: ModePreviews;
+  on_line: boolean;
+  in_book: boolean;
+  eco: string | null;
+  name: string | null;
 }
 
-export interface ImportOpeningRequest {
-  pgn: string;
-  eco?: string;
-  name?: string;
-  description?: string;
-  user_plays: "white" | "black";
-  tags: string[];
+export interface HistMove {
+  san: string;
+  uci: string;
 }
 
 export type SquareHighlight = {
-  [square: string]: { background: string; borderRadius?: string };
+  [square: string]: { background?: string; borderRadius?: string; boxShadow?: string };
 };
-
-export interface GameState {
-  fen: string;
-  movesPlayed: string[];          // UCI moves
-  moveHistory: { san: string; uci: string }[];
-  isPlayerTurn: boolean;
-  isInOpening: boolean;
-  openingMoveIndex: number;
-  lastAiMove: string | null;      // for post-move highlight
-  status: "idle" | "playing" | "game-over";
-}
