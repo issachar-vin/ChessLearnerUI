@@ -4,7 +4,7 @@ import { ChessBoard } from "./components/Board/ChessBoard";
 import { Controls } from "./components/Controls/Controls";
 import { DrawTracker } from "./components/DrawTracker/DrawTracker";
 import { MoveList } from "./components/MoveList/MoveList";
-import { OpeningSelector } from "./components/OpeningSelector/OpeningSelector";
+import { OpeningPanel } from "./components/OpeningPanel/OpeningPanel";
 import { PlayerArea } from "./components/PlayerArea/PlayerArea";
 import { Avatar } from "./components/Profile/Avatar";
 import { ProfileMenu } from "./components/Profile/ProfileMenu";
@@ -20,17 +20,29 @@ import type { Mode, OpeningListItem, Side } from "./types/chess";
 
 export default function App() {
   const [selectedOpeningId, setSelectedOpeningId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [aiOpeningId, setAiOpeningId] = useState<string | null>(null);
+  const [userSearch, setUserSearch] = useState("");
+  const [aiSearch, setAiSearch] = useState("");
   const [mode, setMode] = useState<Mode>("sparring");
   const [strict, setStrict] = useState(true);
   const [userSide, setUserSide] = useState<Side>("white");
 
-  const { openings, loading } = useOpenings(search);
+  const userOpenings = useOpenings(userSearch);
+  const aiOpenings = useOpenings(aiSearch);
   const { opening } = useOpening(selectedOpeningId);
-  const library = useOpeningLibrary();
+  const { opening: aiOpening } = useOpening(aiOpeningId);
+  const userLibrary = useOpeningLibrary("user");
+  const aiLibrary = useOpeningLibrary("ai");
   const { profile, save } = useProfile();
 
-  const game = useChessGame(selectedOpeningId, mode, strict, userSide, opening?.moves ?? []);
+  const game = useChessGame(
+    selectedOpeningId,
+    mode,
+    strict,
+    userSide,
+    opening?.moves ?? [],
+    aiOpeningId
+  );
 
   // Captured material from the shown position, split into the user's and the
   // AI's haul. White's captures are the missing black pieces, and vice versa.
@@ -47,7 +59,9 @@ export default function App() {
   // the opening belongs to: odd plies → White, even → Black. The side toggle
   // both picks the colour you play and filters the list to that colour's lines.
   const sideOf = (moveCount: number): Side => (moveCount % 2 === 1 ? "white" : "black");
-  const visibleOpenings = openings.filter((o) => sideOf(o.move_count) === userSide);
+  const aiSide: Side = userSide === "white" ? "black" : "white";
+  const userVisible = userOpenings.openings.filter((o) => sideOf(o.move_count) === userSide);
+  const aiVisible = aiOpenings.openings.filter((o) => sideOf(o.move_count) === aiSide);
 
   const handleSelectSide = (s: Side) => {
     setUserSide(s);
@@ -59,7 +73,12 @@ export default function App() {
   const handleSelect = (item: OpeningListItem) => {
     setSelectedOpeningId(item.id);
     setUserSide(sideOf(item.move_count));
-    library.addRecent(item);
+    userLibrary.addRecent(item);
+  };
+
+  const handleSelectAi = (item: OpeningListItem) => {
+    setAiOpeningId(item.id);
+    aiLibrary.addRecent(item);
   };
 
   return (
@@ -87,38 +106,71 @@ export default function App() {
       </header>
 
       <main className="flex-1 min-h-0 flex max-w-7xl mx-auto w-full gap-0">
-        <aside className="w-72 shrink-0 flex flex-col min-h-0 border-r border-slate-800/60 bg-slate-900/30">
-          <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Select Opening
-            </h2>
-            <Tooltip {...HELP.side}>
-              <div className="inline-flex rounded-md border border-slate-700/60 overflow-hidden text-xs">
-                {(["white", "black"] as Side[]).map((s) => (
+        <aside className="w-72 shrink-0 flex flex-col min-h-0 border-r border-slate-800/60 bg-slate-900/30 divide-y divide-slate-800/60">
+          <OpeningPanel
+            title="AI opponent"
+            accentText="text-rose-400"
+            accentDot="bg-rose-400"
+            subtitle={aiOpening ? aiOpening.name : "No bias — plays its mode"}
+            headerRight={
+              <Tooltip {...HELP.aiOpening}>
+                {aiOpeningId ? (
                   <button
-                    key={s}
-                    onClick={() => handleSelectSide(s)}
-                    className={`px-2 py-1 capitalize ${
-                      userSide === s ? "bg-purple-600/40 text-white" : "text-slate-400"
-                    }`}
+                    onClick={() => setAiOpeningId(null)}
+                    className="text-[11px] px-2 py-1 rounded-md border border-slate-600/60 text-slate-300 hover:bg-slate-700/50"
                   >
-                    {s}
+                    Default ✕
                   </button>
-                ))}
-              </div>
-            </Tooltip>
-          </div>
-          <OpeningSelector
-            openings={visibleOpenings}
-            recent={library.recent}
-            favorites={library.favorites}
-            loading={loading}
+                ) : (
+                  <span className="text-[11px] text-slate-600 cursor-help border-b border-dotted border-slate-600">
+                    bias?
+                  </span>
+                )}
+              </Tooltip>
+            }
+            openings={aiVisible}
+            recent={aiLibrary.recent}
+            favorites={aiLibrary.favorites}
+            loading={aiOpenings.loading}
+            selectedId={aiOpeningId}
+            search={aiSearch}
+            onSearchChange={setAiSearch}
+            onSelect={handleSelectAi}
+            isFavorite={aiLibrary.isFavorite}
+            onToggleFavorite={aiLibrary.toggleFavorite}
+          />
+          <OpeningPanel
+            title="You"
+            accentText="text-purple-400"
+            accentDot="bg-purple-400"
+            subtitle={opening ? opening.name : "Pick a line to drill"}
+            headerRight={
+              <Tooltip {...HELP.side}>
+                <div className="inline-flex rounded-md border border-slate-700/60 overflow-hidden text-xs">
+                  {(["white", "black"] as Side[]).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleSelectSide(s)}
+                      className={`px-2 py-1 capitalize ${
+                        userSide === s ? "bg-purple-600/40 text-white" : "text-slate-400"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </Tooltip>
+            }
+            openings={userVisible}
+            recent={userLibrary.recent}
+            favorites={userLibrary.favorites}
+            loading={userOpenings.loading}
             selectedId={selectedOpeningId}
+            search={userSearch}
+            onSearchChange={setUserSearch}
             onSelect={handleSelect}
-            search={search}
-            onSearchChange={setSearch}
-            isFavorite={library.isFavorite}
-            onToggleFavorite={library.toggleFavorite}
+            isFavorite={userLibrary.isFavorite}
+            onToggleFavorite={userLibrary.toggleFavorite}
           />
         </aside>
 
@@ -138,6 +190,7 @@ export default function App() {
                 onStrictChange={setStrict}
                 canUndo={game.canUndo}
                 canRedo={game.canRedo}
+                nextIsAutoPlay={game.nextIsAutoPlay}
                 onUndo={game.undo}
                 onRedo={game.redo}
                 onReset={game.reset}
@@ -207,6 +260,8 @@ export default function App() {
                 capturedColor={userIsWhite ? "b" : "w"}
                 scoreDiff={userScore - aiScore}
                 isActive={activePlayer === "user"}
+                autoPlay={game.autoPlay}
+                onToggleAutoPlay={() => game.setAutoPlay(!game.autoPlay)}
               />
             </>
           )}

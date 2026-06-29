@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import type { PieceType } from "../../types/chess";
 import { PieceIcon } from "../PieceIcon/PieceIcon";
+import { Tooltip } from "../Tooltip/Tooltip";
+import { HELP } from "../Tooltip/help";
 
 interface Props {
   name: string;
@@ -10,6 +12,8 @@ interface Props {
   capturedColor: "w" | "b";
   scoreDiff: number;
   isActive: boolean;
+  autoPlay?: boolean;
+  onToggleAutoPlay?: () => void;
 }
 
 function CapturedRow({
@@ -45,6 +49,8 @@ export function PlayerArea({
   capturedColor,
   scoreDiff,
   isActive,
+  autoPlay,
+  onToggleAutoPlay,
 }: Props) {
   // White pieces read fine on the dark card; the side capturing black pieces gets
   // a light card background so they stay legible, with text recoloured to match.
@@ -93,6 +99,22 @@ export function PlayerArea({
           )}
         </div>
       </div>
+      {onToggleAutoPlay && (
+        <Tooltip {...HELP.autoplay}>
+          <button
+            onClick={onToggleAutoPlay}
+            className={`shrink-0 text-[11px] font-semibold px-2 py-1 rounded-md border transition-colors ${
+              autoPlay
+                ? "bg-emerald-600 border-emerald-600 text-white"
+                : light
+                  ? "border-slate-500 text-slate-700 hover:bg-slate-400/50"
+                  : "border-slate-600 text-slate-300 hover:bg-slate-700/50"
+            }`}
+          >
+            {autoPlay ? "■ Auto" : "▶ Auto"}
+          </button>
+        </Tooltip>
+      )}
     </div>
   );
 }

@@ -6,15 +6,20 @@ against the backend AI.
 ## Layout
 
 Three-pane layout in [src/App.tsx](src/App.tsx):
-- **Left** — `OpeningSelector` (search box + flat catalog list) and a White/Black side
-  toggle. The catalog is large (thousands of named lines), so it is searched, not listed.
-- **Center** — `Controls` + `ChessBoard`.
-- **Right** — `MoveList` (clickable history, live opening name, per-mode next-move hints).
+- **Left** — two stacked `OpeningPanel`s (top = **AI opponent**, bottom = **You**), each with
+  Recent / Favorites / Search tabs. The two keep **separate** recent/favorite/search state
+  (`useOpeningLibrary("ai" | "user")`, namespaced localStorage keys; two `useOpenings`
+  instances). The user panel hosts the White/Black side toggle; the AI panel lists the
+  opposite colour's lines and a **Default ✕** to clear the AI bias.
+- **Center** — `Controls`, `ChessBoard`, and a `PlayerArea` above (AI) and below (you).
+- **Right** — `MoveList` (clickable history, live opening name, per-mode next-move hints) and
+  `DrawTracker`.
 
-Components live under `src/components/` (`Board`, `Controls`, `MoveList`,
-`OpeningSelector`). Board rendering uses `react-chessboard`; local move legality uses
-`chess.js`. API types in `src/types/chess.ts`, HTTP client in `src/services/api.ts`
-(base URL from `VITE_API_URL`; `src/vite-env.d.ts` types `import.meta.env`).
+Components live under `src/components/` (`Board`, `Controls`, `MoveList`, `OpeningPanel`,
+`PlayerArea`, `Profile`, `Tooltip`, `DrawTracker`, `PieceIcon`). Board rendering uses
+`react-chessboard`; local move legality uses `chess.js`. API types in `src/types/chess.ts`,
+HTTP client in `src/services/api.ts` (base URL from `VITE_API_URL`; `src/vite-env.d.ts`
+types `import.meta.env`).
 
 ## Modes & previews
 
@@ -48,7 +53,13 @@ stale values.
 - **Navigation:** `undo`/`redo`/`jumpTo` rebuild the board by replaying `history[0..pointer]`.
   Making a new move from a past pointer truncates the forward history (`canRedo` then false).
 - `analyze` is fetched whenever it lands on the learner's turn (hint + previews + the
-  strict reference move). `ai-move` is sent with the current `mode`.
+  strict reference move). `ai-move` is sent with the current `mode` and the optional
+  `ai_opening_id` — the AI follows that opening (FEN-matched on the backend) until off-line,
+  then reverts to `mode`.
+- **Autoplay** (`autoPlay`/`setAutoPlay`): at the live tip on the learner's turn it plays the
+  learner's move automatically (`guidedNext` step, else `analysis.recommended`) so the opening
+  runs itself out. The same move backs `nextIsAutoPlay`: with autoplay off, the ▶ button at the
+  tip plays that move (turning green) instead of navigating history.
 
 **Highlights are derived, never stored** — `squareHighlights` (selection/legal/last-move)
 and `previewArrows` are `useMemo`. Don't reintroduce a stored-highlights setter.

@@ -64,12 +64,15 @@ function buildBoard(history: HistMove[], upto: number): Chess {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+const AUTOPLAY_DELAY_MS = 450;
+
 export function useChessGame(
   openingId: string | null,
   mode: Mode,
   strict: boolean,
   userSide: Side,
-  lineMoves: MoveEntry[]
+  lineMoves: MoveEntry[],
+  aiOpeningId: string | null
 ) {
   // Refs are the source of truth; `snapshot` is the render projection of them.
   const chessRef = useRef(new Chess());
@@ -77,6 +80,8 @@ export function useChessGame(
   const pointerRef = useRef(0);
   // Guards against a slow/stale analyze response overwriting a newer one.
   const analysisSeq = useRef(0);
+  // Latest move autoplay/▶ would make for the learner (line step, else the hint).
+  const autoPlayMoveRef = useRef<string | null>(null);
 
   const [snapshot, setSnapshot] = useState({
     fen: STARTING_FEN,
@@ -97,10 +102,11 @@ export function useChessGame(
     sparring: false,
     challenge: false,
   });
+  const [autoPlay, setAutoPlay] = useState(false);
 
   // Mirror the latest props into a ref so move handlers never read stale values.
-  const cfg = useRef({ openingId, mode, strict, userSide, analysis });
-  cfg.current = { openingId, mode, strict, userSide, analysis };
+  const cfg = useRef({ openingId, mode, strict, userSide, aiOpeningId, analysis });
+  cfg.current = { openingId, mode, strict, userSide, aiOpeningId, analysis };
 
   const userChar = userSide === "white" ? "w" : "b";
 
@@ -140,7 +146,7 @@ export function useChessGame(
   }, []);
 
   const triggerAiMove = useCallback(async () => {
-    const { openingId: oid, mode: m } = cfg.current;
+    const { openingId: oid, mode: m, aiOpeningId: aoid } = cfg.current;
     const fen = chessRef.current.fen();
     const moves = historyRef.current.slice(0, pointerRef.current).map((mm) => mm.uci);
     setIsAiThinking(true);
@@ -150,6 +156,7 @@ export function useChessGame(
         moves_played: moves,
         mode: m,
         opening_id: oid,
+        ai_opening_id: aoid,
       });
       if (!res.move) {
         setIsAiThinking(false);
@@ -254,7 +261,16 @@ export function useChessGame(
   );
 
   const undo = useCallback(() => navigate(pointerRef.current - 1), [navigate]);
-  const redo = useCallback(() => navigate(pointerRef.current + 1), [navigate]);
+  // At the live tip, ▶ plays the move autoplay would make rather than navigating
+  // forward — letting the learner step the opening one move at a time.
+  const redo = useCallback(() => {
+    if (pointerRef.current < historyRef.current.length) {
+      navigate(pointerRef.current + 1);
+      return;
+    }
+    const uci = autoPlayMoveRef.current;
+    if (uci) applyMove(uci.slice(0, 2), uci.slice(2, 4));
+  }, [navigate, applyMove]);
   const jumpTo = useCallback((ply: number) => navigate(ply), [navigate]);
 
   const onPieceDrop = useCallback(
@@ -360,6 +376,25 @@ export function useChessGame(
   }, [analysis, previewVisibility, snapshot.fen, snapshot.pointer, lineMoves, guidedNext]);
 
   const isUserTurn = snapshot.turn === userChar;
+
+  // The move autoplay (and the ▶ step) makes for the learner: the opening-line
+  // step. Once the line is exhausted there's nothing left to simulate, so it stops.
+  const autoPlayMove = guidedNext?.uci ?? null;
+  autoPlayMoveRef.current = autoPlayMove;
+  const atTip = snapshot.pointer >= snapshot.length;
+  const nextIsAutoPlay = atTip && isUserTurn && !isAiThinking && !snapshot.result && !!autoPlayMove;
+
+  // Autoplay: keep making the learner's move at the live tip so the opening plays
+  // itself out; toggling off hands control back for a custom move.
+  useEffect(() => {
+    if (!autoPlay || !nextIsAutoPlay || !autoPlayMove) return;
+    const t = setTimeout(
+      () => applyMove(autoPlayMove.slice(0, 2), autoPlayMove.slice(2, 4)),
+      AUTOPLAY_DELAY_MS
+    );
+    return () => clearTimeout(t);
+  }, [autoPlay, nextIsAutoPlay, autoPlayMove, applyMove]);
+
   const winner: Side | null =
     snapshot.result === "checkmate" ? (snapshot.turn === "w" ? "black" : "white") : null;
 
@@ -382,6 +417,9 @@ export function useChessGame(
     setPreviewVisibility,
     canUndo: snapshot.pointer > 0,
     canRedo: snapshot.pointer < snapshot.length,
+    autoPlay,
+    setAutoPlay,
+    nextIsAutoPlay,
     onPieceDrop,
     onSquareClick,
     undo,
