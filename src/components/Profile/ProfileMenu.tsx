@@ -63,7 +63,8 @@ export function ProfileMenu({ profile, onSave }: Props) {
     };
   }, [open]);
 
-  const setPiece = (piece: PieceType) => setDraft((d) => ({ ...d, icon: { type: "piece", piece } }));
+  const setPiece = (piece: PieceType) =>
+    setDraft((d) => ({ ...d, icon: { type: "piece", piece } }));
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -79,7 +79,9 @@ export function DrawTracker({ fen, history }: Props) {
 
   return (
     <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/50 space-y-3">
-      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Draw watch</div>
+      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        Draw watch
+      </div>
 
       <Rule
         title="50-move rule"

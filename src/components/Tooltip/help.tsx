@@ -102,8 +102,8 @@ export const HELP: Record<string, Help> = {
     body: (
       <p>
         The <span className="text-slate-200">Encyclopaedia of Chess Openings</span> classifies every
-        opening with a letter (A–E) and number (00–99) — e.g. <code>A00</code> covers irregular first
-        moves. Codes come from the bundled lichess <em>chess-openings</em> dataset.
+        opening with a letter (A–E) and number (00–99) — e.g. <code>A00</code> covers irregular
+        first moves. Codes come from the bundled lichess <em>chess-openings</em> dataset.
       </p>
     ),
   },
