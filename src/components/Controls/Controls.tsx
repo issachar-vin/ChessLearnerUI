@@ -10,6 +10,7 @@ interface Props {
   onStrictChange: (b: boolean) => void;
   canUndo: boolean;
   canRedo: boolean;
+  nextIsAutoPlay: boolean;
   onUndo: () => void;
   onRedo: () => void;
   onReset: () => void;
@@ -37,6 +38,7 @@ export function Controls({
   onStrictChange,
   canUndo,
   canRedo,
+  nextIsAutoPlay,
   onUndo,
   onRedo,
   onReset,
@@ -99,9 +101,14 @@ export function Controls({
             </button>
             <button
               onClick={onRedo}
-              disabled={!canRedo}
-              aria-label="Redo move"
-              className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed border-l border-slate-700/60"
+              disabled={!canRedo && !nextIsAutoPlay}
+              aria-label={nextIsAutoPlay ? "Play autoplay move" : "Redo move"}
+              title={nextIsAutoPlay ? "Plays the autoplay move (not history)" : undefined}
+              className={`px-3 py-2 border-l border-slate-700/60 disabled:opacity-30 disabled:cursor-not-allowed ${
+                nextIsAutoPlay && !canRedo
+                  ? "text-emerald-400 hover:bg-emerald-500/15"
+                  : "text-slate-300 hover:bg-slate-700/50"
+              }`}
             >
               ▶
             </button>

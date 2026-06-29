@@ -47,8 +47,9 @@ export const HELP: Record<string, Help> = {
     title: "Undo / Redo",
     body: (
       <p>
-        Step backward (◀) and forward (▶) through the move history. Navigating never triggers an
-        opponent reply — only playing your own colour does.
+        Step backward (◀) and forward (▶) through the move history. At the latest move, ▶ turns
+        green and plays the autoplay move for you instead of navigating. Navigating never triggers
+        an opponent reply — only playing your own colour does.
       </p>
     ),
   },
@@ -94,6 +95,26 @@ export const HELP: Record<string, Help> = {
       <p>
         Choose whether you play White or Black. The board flips to your side and the opening list
         filters to lines for that colour.
+      </p>
+    ),
+  },
+  autoplay: {
+    title: "Autoplay",
+    body: (
+      <p>
+        Plays your moves automatically so the opening runs itself out — the line step when it's
+        playable, otherwise the recommended move. Toggle off any time to take over with a custom
+        move. With it off, the ▶ button steps the same move one at a time.
+      </p>
+    ),
+  },
+  aiOpening: {
+    title: "AI opening",
+    body: (
+      <p>
+        Pick a line for the opponent to play. While the game stays in that line the AI follows it;
+        once you leave the line it reverts to its current mode (guided/sparring/challenge). Leave it
+        on <span className="text-slate-200">Default</span> for the normal mode behaviour.
       </p>
     ),
   },

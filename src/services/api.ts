@@ -42,6 +42,7 @@ export const api = {
       moves_played: string[];
       mode: Mode;
       opening_id: string | null;
+      ai_opening_id: string | null;
     }) =>
       request<AIMoveResponse>("/game/ai-move", {
         method: "POST",
