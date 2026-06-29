@@ -69,7 +69,7 @@ export function useChessGame(
   mode: Mode,
   strict: boolean,
   userSide: Side,
-  lineMoves: MoveEntry[],
+  lineMoves: MoveEntry[]
 ) {
   // Refs are the source of truth; `snapshot` is the render projection of them.
   const chessRef = useRef(new Chess());
@@ -237,7 +237,7 @@ export function useChessGame(
       }
       return true;
     },
-    [isAiThinking, userChar, sync, triggerAiMove],
+    [isAiThinking, userChar, sync, triggerAiMove]
   );
 
   const navigate = useCallback(
@@ -250,7 +250,7 @@ export function useChessGame(
       setAnalysis(null);
       sync(clamped > 0 ? historyRef.current[clamped - 1].uci : null);
     },
-    [sync],
+    [sync]
   );
 
   const undo = useCallback(() => navigate(pointerRef.current - 1), [navigate]);
@@ -259,7 +259,7 @@ export function useChessGame(
 
   const onPieceDrop = useCallback(
     (source: string, target: string) => applyMove(source, target),
-    [applyMove],
+    [applyMove]
   );
 
   const onSquareClick = useCallback(
@@ -279,7 +279,7 @@ export function useChessGame(
         setSelectedSquare(square);
       }
     },
-    [isAiThinking, selectedSquare, applyMove],
+    [isAiThinking, selectedSquare, applyMove]
   );
 
   const squareHighlights = useMemo((): SquareHighlight => {
@@ -313,7 +313,7 @@ export function useChessGame(
     // Only suggest a move that is actually legal in the current position, so a
     // momentarily-stale hint can never point at a piece that has already moved.
     const legal = new Set(
-      new Chess(snapshot.fen).moves({ verbose: true }).map((mv) => `${mv.from}${mv.to}`),
+      new Chess(snapshot.fen).moves({ verbose: true }).map((mv) => `${mv.from}${mv.to}`)
     );
     const arrows: [string, string, string][] = [];
     const add = (uci: string | null, color: string) => {

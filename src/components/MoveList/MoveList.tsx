@@ -50,9 +50,7 @@ export function MoveList({ history, pointer, onJump, analysis, trainingName }: P
               </span>
             )}
           </div>
-          {trainingName && (
-            <div className="text-white font-semibold text-sm">{trainingName}</div>
-          )}
+          {trainingName && <div className="text-white font-semibold text-sm">{trainingName}</div>}
           {analysis?.name && analysis.name !== trainingName && (
             <div className="text-slate-400 text-xs mt-1">
               Current: {analysis.eco} {analysis.name}
@@ -63,7 +61,9 @@ export function MoveList({ history, pointer, onJump, analysis, trainingName }: P
 
       {analysis && (
         <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/50 space-y-1.5">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Next move</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Next move
+          </div>
           <Hint label="Recommended" san={analysis.recommended.san} color="#10b981" />
           <Hint label="Guided" san={analysis.previews.guided.san} color="#3b82f6" />
           <Hint label="Sparring" san={analysis.previews.sparring.san} color="#f59e0b" />

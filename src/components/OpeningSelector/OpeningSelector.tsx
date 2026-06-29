@@ -41,7 +41,9 @@ function OpeningRow({
   return (
     <div
       className={`group flex items-stretch rounded-lg mb-1 border ${
-        selected ? "bg-purple-600/30 border-purple-500/50" : "border-transparent hover:bg-slate-700/50"
+        selected
+          ? "bg-purple-600/30 border-purple-500/50"
+          : "border-transparent hover:bg-slate-700/50"
       }`}
     >
       <button onClick={() => onSelect(item)} className="flex-1 text-left px-3 py-2 min-w-0">

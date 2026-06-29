@@ -43,10 +43,7 @@ export function useOpeningLibrary() {
     });
   }, []);
 
-  const isFavorite = useCallback(
-    (id: string) => favorites.some((o) => o.id === id),
-    [favorites],
-  );
+  const isFavorite = useCallback((id: string) => favorites.some((o) => o.id === id), [favorites]);
 
   return { recent, favorites, addRecent, toggleFavorite, isFavorite };
 }

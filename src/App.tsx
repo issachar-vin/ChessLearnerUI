@@ -121,9 +121,7 @@ export default function App() {
               <div className="flex items-center gap-2 text-sm">
                 {game.result ? (
                   <span className="font-semibold text-purple-300 capitalize">
-                    {game.result === "checkmate"
-                      ? `Checkmate — ${game.winner} wins`
-                      : game.result}
+                    {game.result === "checkmate" ? `Checkmate — ${game.winner} wins` : game.result}
                   </span>
                 ) : (
                   <>
@@ -138,7 +136,11 @@ export default function App() {
                       {game.sideToMove === "w" ? "White" : "Black"} to move
                     </span>
                     <span className="text-slate-500 text-xs">
-                      {game.isAiThinking ? "(opponent thinking…)" : game.isUserTurn ? "(you)" : "(opponent)"}
+                      {game.isAiThinking
+                        ? "(opponent thinking…)"
+                        : game.isUserTurn
+                          ? "(you)"
+                          : "(opponent)"}
                     </span>
                     {game.inCheck && (
                       <span className="text-[11px] font-semibold bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded animate-pulse">

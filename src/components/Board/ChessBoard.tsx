@@ -14,9 +14,11 @@ interface Props {
   onSquareClick: (square: string) => void;
 }
 
-function resultText(result: GameResult, winner: Side | null): { title: string; sub: string } | null {
-  if (result === "checkmate")
-    return { title: "Checkmate", sub: winner ? `${winner} wins` : "" };
+function resultText(
+  result: GameResult,
+  winner: Side | null
+): { title: string; sub: string } | null {
+  if (result === "checkmate") return { title: "Checkmate", sub: winner ? `${winner} wins` : "" };
   if (result === "stalemate") return { title: "Stalemate", sub: "Draw" };
   if (result === "draw") return { title: "Draw", sub: "" };
   return null;
@@ -60,10 +62,7 @@ export function ChessBoard({
         </div>
       )}
 
-      <div
-        className="rounded-lg overflow-hidden shadow-2xl"
-        style={{ width: "min(560px, 90vw)" }}
-      >
+      <div className="rounded-lg overflow-hidden shadow-2xl" style={{ width: "min(560px, 90vw)" }}>
         <Chessboard
           position={fen}
           boardOrientation={boardOrientation}
@@ -86,10 +85,7 @@ export function ChessBoard({
       <div className="mt-2 flex items-center gap-3 text-xs text-slate-400 flex-wrap">
         {LEGEND.map(({ color, label }) => (
           <span key={label} className="flex items-center gap-1.5">
-            <span
-              className="inline-block w-4 h-0 border-t-2"
-              style={{ borderColor: color }}
-            />
+            <span className="inline-block w-4 h-0 border-t-2" style={{ borderColor: color }} />
             {label}
           </span>
         ))}
