@@ -1,15 +1,18 @@
 import { useEffect, useRef } from "react";
-import type { AnalyzeResponse, HistMove } from "../../types/chess";
+import type { AnalyzeResponse, HistMove, MoveEntry } from "../../types/chess";
+import { Tooltip } from "../Tooltip/Tooltip";
+import { HELP } from "../Tooltip/help";
 
 interface Props {
   history: HistMove[];
   pointer: number;
   onJump: (ply: number) => void;
   analysis: AnalyzeResponse | null;
+  guidedNext: MoveEntry | null;
   trainingName: string | null;
 }
 
-export function MoveList({ history, pointer, onJump, analysis, trainingName }: Props) {
+export function MoveList({ history, pointer, onJump, analysis, guidedNext, trainingName }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,7 +56,15 @@ export function MoveList({ history, pointer, onJump, analysis, trainingName }: P
           {trainingName && <div className="text-white font-semibold text-sm">{trainingName}</div>}
           {analysis?.name && analysis.name !== trainingName && (
             <div className="text-slate-400 text-xs mt-1">
-              Current: {analysis.eco} {analysis.name}
+              Current:{" "}
+              {analysis.eco && (
+                <Tooltip {...HELP.eco}>
+                  <span className="font-mono font-semibold text-slate-300 cursor-help border-b border-dotted border-slate-600">
+                    {analysis.eco}
+                  </span>
+                </Tooltip>
+              )}{" "}
+              {analysis.name}
             </div>
           )}
         </div>
@@ -65,7 +76,7 @@ export function MoveList({ history, pointer, onJump, analysis, trainingName }: P
             Next move
           </div>
           <Hint label="Recommended" san={analysis.recommended.san} color="#10b981" />
-          <Hint label="Guided" san={analysis.previews.guided.san} color="#3b82f6" />
+          <Hint label="Guided" san={guidedNext?.san ?? null} color="#3b82f6" />
           <Hint label="Sparring" san={analysis.previews.sparring.san} color="#f59e0b" />
           <Hint label="Challenge" san={analysis.previews.challenge.san} color="#a855f7" />
         </div>
