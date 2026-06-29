@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { ARROW_COLORS, type PreviewVisibility } from "../../hooks/useChessGame";
 import type { Mode } from "../../types/chess";
 
@@ -42,8 +41,9 @@ export function Controls({
   previewVisibility,
   onPreviewChange,
 }: Props) {
-  const [previewOpen, setPreviewOpen] = useState(false);
   const activeHint = MODES.find((m) => m.key === mode)?.hint;
+  const togglePreview = (key: keyof PreviewVisibility) =>
+    onPreviewChange({ ...previewVisibility, [key]: !previewVisibility[key] });
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -100,36 +100,6 @@ export function Controls({
           </button>
         </div>
 
-        {/* Preview dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setPreviewOpen((o) => !o)}
-            className="px-3 py-2 rounded-lg text-sm font-medium border border-slate-600/50 text-slate-300 hover:bg-slate-700/50"
-          >
-            Previews ▾
-          </button>
-          {previewOpen && (
-            <div className="absolute z-20 mt-1 right-0 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2">
-              {PREVIEW_KEYS.map(({ key, label, color }) => (
-                <label
-                  key={key}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-700/50 cursor-pointer text-sm text-slate-200"
-                >
-                  <input
-                    type="checkbox"
-                    checked={previewVisibility[key]}
-                    onChange={(e) =>
-                      onPreviewChange({ ...previewVisibility, [key]: e.target.checked })
-                    }
-                  />
-                  <span className="inline-block w-3 h-0 border-t-2" style={{ borderColor: color }} />
-                  {label}
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Reset */}
         <button
           onClick={onReset}
@@ -137,6 +107,25 @@ export function Controls({
         >
           Reset
         </button>
+      </div>
+
+      {/* Preview toggles */}
+      <div className="flex items-center gap-2 flex-wrap justify-center">
+        <span className="text-xs text-slate-500 uppercase tracking-wider">Previews</span>
+        {PREVIEW_KEYS.map(({ key, label, color }) => (
+          <button
+            key={key}
+            onClick={() => togglePreview(key)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+              previewVisibility[key]
+                ? "border-slate-500 bg-slate-700/50 text-white"
+                : "border-slate-700/60 text-slate-500 hover:bg-slate-700/30"
+            }`}
+          >
+            <span className="inline-block w-3.5 border-t-2" style={{ borderColor: color }} />
+            {label}
+          </button>
+        ))}
       </div>
 
       {activeHint && <span className="text-xs text-slate-500">{activeHint}</span>}
