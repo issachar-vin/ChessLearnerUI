@@ -73,6 +73,8 @@ export function useChessGame(
   const chessRef = useRef(new Chess());
   const historyRef = useRef<HistMove[]>([]);
   const pointerRef = useRef(0);
+  // Guards against a slow/stale analyze response overwriting a newer one.
+  const analysisSeq = useRef(0);
 
   const [snapshot, setSnapshot] = useState({
     fen: STARTING_FEN,
@@ -121,6 +123,7 @@ export function useChessGame(
 
   const fetchAnalysis = useCallback(async () => {
     if (!cfg.current.openingId) return;
+    const seq = ++analysisSeq.current;
     const moves = historyRef.current.slice(0, pointerRef.current).map((m) => m.uci);
     try {
       const res = await api.game.analyze({
@@ -128,9 +131,9 @@ export function useChessGame(
         moves_played: moves,
         opening_id: cfg.current.openingId,
       });
-      setAnalysis(res);
+      if (seq === analysisSeq.current) setAnalysis(res);
     } catch {
-      setAnalysis(null);
+      if (seq === analysisSeq.current) setAnalysis(null);
     }
   }, []);
 
@@ -221,6 +224,7 @@ export function useChessGame(
       historyRef.current = historyRef.current.slice(0, pointerRef.current);
       historyRef.current.push({ san: applied.san, uci: applied.lan });
       pointerRef.current += 1;
+      analysisSeq.current++;
       setSelectedSquare(null);
       setAnalysis(null);
       sync(applied.lan);
@@ -239,7 +243,9 @@ export function useChessGame(
       const clamped = Math.max(0, Math.min(historyRef.current.length, to));
       chessRef.current = buildBoard(historyRef.current, clamped);
       pointerRef.current = clamped;
+      analysisSeq.current++;
       setSelectedSquare(null);
+      setAnalysis(null);
       sync(clamped > 0 ? historyRef.current[clamped - 1].uci : null);
     },
     [sync],
@@ -302,16 +308,23 @@ export function useChessGame(
 
   const previewArrows = useMemo((): [string, string, string][] => {
     if (!analysis) return [];
+    // Only suggest a move that is actually legal in the current position, so a
+    // momentarily-stale hint can never point at a piece that has already moved.
+    const legal = new Set(
+      new Chess(snapshot.fen).moves({ verbose: true }).map((mv) => `${mv.from}${mv.to}`),
+    );
     const arrows: [string, string, string][] = [];
     const add = (uci: string | null, color: string) => {
-      if (uci) arrows.push([uci.slice(0, 2), uci.slice(2, 4), color]);
+      if (uci && legal.has(uci.slice(0, 4))) {
+        arrows.push([uci.slice(0, 2), uci.slice(2, 4), color]);
+      }
     };
     if (previewVisibility.recommended) add(analysis.recommended.uci, ARROW_COLORS.recommended);
     if (previewVisibility.guided) add(analysis.previews.guided.uci, ARROW_COLORS.guided);
     if (previewVisibility.sparring) add(analysis.previews.sparring.uci, ARROW_COLORS.sparring);
     if (previewVisibility.challenge) add(analysis.previews.challenge.uci, ARROW_COLORS.challenge);
     return arrows;
-  }, [analysis, previewVisibility]);
+  }, [analysis, previewVisibility, snapshot.fen]);
 
   const isUserTurn = snapshot.turn === userChar;
   const winner: Side | null =
