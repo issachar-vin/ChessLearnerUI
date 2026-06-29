@@ -1,5 +1,7 @@
 import { ARROW_COLORS, type PreviewVisibility } from "../../hooks/useChessGame";
 import type { Mode } from "../../types/chess";
+import { Tooltip } from "../Tooltip/Tooltip";
+import { HELP } from "../Tooltip/help";
 
 interface Props {
   mode: Mode;
@@ -49,69 +51,81 @@ export function Controls({
     <div className="flex flex-col items-center gap-2">
       <div className="flex items-center gap-3 flex-wrap justify-center">
         {/* Mode segmented control */}
-        <div className="inline-flex rounded-lg border border-slate-700/60 overflow-hidden">
-          {MODES.map((m) => (
-            <button
-              key={m.key}
-              onClick={() => onModeChange(m.key)}
-              className={`px-3 py-2 text-sm font-medium transition-colors ${
-                mode === m.key
-                  ? "bg-purple-600/40 text-white"
-                  : "text-slate-400 hover:bg-slate-700/40"
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
+        <Tooltip {...HELP.mode}>
+          <div className="inline-flex rounded-lg border border-slate-700/60 overflow-hidden">
+            {MODES.map((m) => (
+              <button
+                key={m.key}
+                onClick={() => onModeChange(m.key)}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  mode === m.key
+                    ? "bg-purple-600/40 text-white"
+                    : "text-slate-400 hover:bg-slate-700/40"
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </Tooltip>
 
         {/* Guided strict toggle */}
         {mode === "guided" && (
-          <button
-            onClick={() => onStrictChange(!strict)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
-              strict
-                ? "bg-blue-500/20 border-blue-500/40 text-blue-300"
-                : "border-slate-600/50 text-slate-400 hover:bg-slate-700/50"
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${strict ? "bg-blue-400" : "bg-slate-500"}`} />
-            Strict
-          </button>
+          <Tooltip {...HELP.strict}>
+            <button
+              onClick={() => onStrictChange(!strict)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                strict
+                  ? "bg-blue-500/20 border-blue-500/40 text-blue-300"
+                  : "border-slate-600/50 text-slate-400 hover:bg-slate-700/50"
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${strict ? "bg-blue-400" : "bg-slate-500"}`} />
+              Strict
+            </button>
+          </Tooltip>
         )}
 
         {/* Undo / redo */}
-        <div className="inline-flex rounded-lg border border-slate-700/60 overflow-hidden">
-          <button
-            onClick={onUndo}
-            disabled={!canUndo}
-            aria-label="Undo move"
-            className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            ◀
-          </button>
-          <button
-            onClick={onRedo}
-            disabled={!canRedo}
-            aria-label="Redo move"
-            className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed border-l border-slate-700/60"
-          >
-            ▶
-          </button>
-        </div>
+        <Tooltip {...HELP.nav}>
+          <div className="inline-flex rounded-lg border border-slate-700/60 overflow-hidden">
+            <button
+              onClick={onUndo}
+              disabled={!canUndo}
+              aria-label="Undo move"
+              className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              ◀
+            </button>
+            <button
+              onClick={onRedo}
+              disabled={!canRedo}
+              aria-label="Redo move"
+              className="px-3 py-2 text-slate-300 hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed border-l border-slate-700/60"
+            >
+              ▶
+            </button>
+          </div>
+        </Tooltip>
 
         {/* Reset */}
-        <button
-          onClick={onReset}
-          className="px-3 py-2 rounded-lg text-sm font-medium border border-slate-600/50 text-slate-300 hover:bg-slate-700/50"
-        >
-          Reset
-        </button>
+        <Tooltip {...HELP.reset}>
+          <button
+            onClick={onReset}
+            className="px-3 py-2 rounded-lg text-sm font-medium border border-slate-600/50 text-slate-300 hover:bg-slate-700/50"
+          >
+            Reset
+          </button>
+        </Tooltip>
       </div>
 
       {/* Preview toggles */}
       <div className="flex items-center gap-2 flex-wrap justify-center">
-        <span className="text-xs text-slate-500 uppercase tracking-wider">Previews</span>
+        <Tooltip {...HELP.previews}>
+          <span className="text-xs text-slate-500 uppercase tracking-wider cursor-help border-b border-dotted border-slate-600">
+            Previews
+          </span>
+        </Tooltip>
         {PREVIEW_KEYS.map(({ key, label, color }) => (
           <button
             key={key}

@@ -17,8 +17,15 @@ export default {
         "slide-in": "slideIn 0.2s ease-out",
         "fade-in": "fadeIn 0.3s ease-out",
         "bounce-in": "bounceIn 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97)",
+        "knight-hop": "knightHop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
       keyframes: {
+        knightHop: {
+          "0%": { transform: "translateY(0) rotate(0)" },
+          "40%": { transform: "translateY(-12px) rotate(-12deg)" },
+          "70%": { transform: "translateY(-3px) rotate(6deg)" },
+          "100%": { transform: "translateY(0) rotate(0)" },
+        },
         slideIn: {
           "0%": { transform: "translateX(-100%)", opacity: "0" },
           "100%": { transform: "translateX(0)", opacity: "1" },

@@ -21,7 +21,12 @@ Components live under `src/components/` (`Board`, `Controls`, `MoveList`,
 Three opponent modes (`Mode` in `types/chess.ts`), switchable mid-game, plus a Guided
 **strict** sub-toggle:
 - **Guided** — opponent follows the selected line. Strict ON rejects off-line learner
-  moves (toast); strict OFF allows any move.
+  moves (toast); strict OFF allows any move. The Guided preview/hint tracks a **progress
+  cursor** (`guidedNext` in `useChessGame.ts`): opponent-colour line moves are passed as
+  soon as the opponent moves, learner-colour moves only when the learner plays them exactly.
+  So deviating never skips your step — it parks on the move you missed — and the cursor never
+  gets stuck on an opponent move once you're off-line. (Recommended still follows the line by
+  board ply, falling back to the engine hint.)
 - **Sparring** — opponent plays the most common book move.
 - **Challenge** — opponent plays the engine's best move.
 

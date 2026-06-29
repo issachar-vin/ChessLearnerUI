@@ -2,11 +2,20 @@ import { useState } from "react";
 import { Toaster } from "react-hot-toast";
 import { ChessBoard } from "./components/Board/ChessBoard";
 import { Controls } from "./components/Controls/Controls";
+import { DrawTracker } from "./components/DrawTracker/DrawTracker";
 import { MoveList } from "./components/MoveList/MoveList";
 import { OpeningSelector } from "./components/OpeningSelector/OpeningSelector";
+import { PlayerArea } from "./components/PlayerArea/PlayerArea";
+import { Avatar } from "./components/Profile/Avatar";
+import { ProfileMenu } from "./components/Profile/ProfileMenu";
+import { Tooltip } from "./components/Tooltip/Tooltip";
+import { HELP } from "./components/Tooltip/help";
 import { useChessGame } from "./hooks/useChessGame";
 import { useOpeningLibrary } from "./hooks/useOpeningLibrary";
 import { useOpening, useOpenings } from "./hooks/useOpenings";
+import { useProfile } from "./hooks/useProfile";
+import { AI_PLAYERS } from "./lib/aiPlayers";
+import { computeCaptures } from "./lib/captures";
 import type { Mode, OpeningListItem, Side } from "./types/chess";
 
 export default function App() {
@@ -19,8 +28,20 @@ export default function App() {
   const { openings, loading } = useOpenings(search);
   const { opening } = useOpening(selectedOpeningId);
   const library = useOpeningLibrary();
+  const { profile, save } = useProfile();
 
   const game = useChessGame(selectedOpeningId, mode, strict, userSide, opening?.moves ?? []);
+
+  // Captured material from the shown position, split into the user's and the
+  // AI's haul. White's captures are the missing black pieces, and vice versa.
+  const captures = computeCaptures(game.fen);
+  const userIsWhite = userSide === "white";
+  const userCaptured = userIsWhite ? captures.byWhite : captures.byBlack;
+  const aiCaptured = userIsWhite ? captures.byBlack : captures.byWhite;
+  const userScore = userIsWhite ? captures.whiteScore : captures.blackScore;
+  const aiScore = userIsWhite ? captures.blackScore : captures.whiteScore;
+  const aiPlayer = AI_PLAYERS[mode];
+  const activePlayer: "user" | "ai" | null = game.result ? null : game.isUserTurn ? "user" : "ai";
 
   // A line ends on its characteristic move, so ply-count parity gives the side
   // the opening belongs to: odd plies → White, even → Black. The side toggle
@@ -59,6 +80,9 @@ export default function App() {
             </h1>
             <p className="text-xs text-slate-500">Master openings, counters, and replies</p>
           </div>
+          <div className="ml-auto">
+            <ProfileMenu profile={profile} onSave={save} />
+          </div>
         </div>
       </header>
 
@@ -68,19 +92,21 @@ export default function App() {
             <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Select Opening
             </h2>
-            <div className="inline-flex rounded-md border border-slate-700/60 overflow-hidden text-xs">
-              {(["white", "black"] as Side[]).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => handleSelectSide(s)}
-                  className={`px-2 py-1 capitalize ${
-                    userSide === s ? "bg-purple-600/40 text-white" : "text-slate-400"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            <Tooltip {...HELP.side}>
+              <div className="inline-flex rounded-md border border-slate-700/60 overflow-hidden text-xs">
+                {(["white", "black"] as Side[]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => handleSelectSide(s)}
+                    className={`px-2 py-1 capitalize ${
+                      userSide === s ? "bg-purple-600/40 text-white" : "text-slate-400"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </Tooltip>
           </div>
           <OpeningSelector
             openings={visibleOpenings}
@@ -150,6 +176,19 @@ export default function App() {
                   </>
                 )}
               </div>
+              <PlayerArea
+                name={aiPlayer.name}
+                subtitle={aiPlayer.mode}
+                icon={
+                  <span className="inline-flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-slate-800 border border-slate-600 text-xl">
+                    {aiPlayer.icon}
+                  </span>
+                }
+                captured={aiCaptured}
+                capturedColor={userIsWhite ? "w" : "b"}
+                scoreDiff={aiScore - userScore}
+                isActive={activePlayer === "ai"}
+              />
               <ChessBoard
                 fen={game.fen}
                 boardOrientation={userSide}
@@ -161,18 +200,32 @@ export default function App() {
                 onPieceDrop={game.onPieceDrop}
                 onSquareClick={game.onSquareClick}
               />
+              <PlayerArea
+                name={profile.name}
+                icon={<Avatar icon={profile.icon} size={40} />}
+                captured={userCaptured}
+                capturedColor={userIsWhite ? "b" : "w"}
+                scoreDiff={userScore - aiScore}
+                isActive={activePlayer === "user"}
+              />
             </>
           )}
         </div>
 
-        <aside className="w-72 shrink-0 flex flex-col min-h-0 overflow-hidden border-l border-slate-800/60 bg-slate-900/30 p-4">
-          <MoveList
-            history={game.history}
-            pointer={game.pointer}
-            onJump={game.jumpTo}
-            analysis={game.analysis}
-            trainingName={opening?.name ?? null}
-          />
+        <aside className="w-72 shrink-0 flex flex-col min-h-0 overflow-hidden border-l border-slate-800/60 bg-slate-900/30 p-4 gap-3">
+          <div className="flex-1 min-h-0">
+            <MoveList
+              history={game.history}
+              pointer={game.pointer}
+              onJump={game.jumpTo}
+              analysis={game.analysis}
+              guidedNext={game.guidedNext}
+              trainingName={opening?.name ?? null}
+            />
+          </div>
+          {selectedOpeningId && (
+            <DrawTracker fen={game.fen} history={game.history.slice(0, game.pointer)} />
+          )}
         </aside>
       </main>
     </div>

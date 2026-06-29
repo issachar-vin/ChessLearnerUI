@@ -1,5 +1,13 @@
 export type Mode = "guided" | "sparring" | "challenge";
 export type Side = "white" | "black";
+export type PieceType = "p" | "n" | "b" | "r" | "q" | "k";
+
+export type ProfileIcon = { type: "piece"; piece: PieceType } | { type: "image"; src: string };
+
+export interface Profile {
+  name: string;
+  icon: ProfileIcon;
+}
 
 export interface MoveEntry {
   ply: number;

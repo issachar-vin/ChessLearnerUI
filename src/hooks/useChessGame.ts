@@ -308,6 +308,29 @@ export function useChessGame(
     return highlights;
   }, [snapshot.lastMove, snapshot.checkedKingSquare, selectedSquare]);
 
+  // The guided preview follows the learner's *progress* through the opening so a
+  // deviation never skips the step that was missed. A cursor walks the line:
+  // - an opponent-colour line move is passed as soon as the opponent moves (the
+  //   learner never replays it, and off-line the opponent won't match it), and
+  // - a learner-colour line move is passed only when the learner plays it exactly,
+  //   so deviating leaves the cursor parked on the move to play.
+  // The game always starts from the initial position, so colour follows parity:
+  // line move `c` and history move `i` are White when even, Black when odd.
+  const guidedNext = useMemo((): MoveEntry | null => {
+    const hist = historyRef.current;
+    let cursor = 0;
+    for (let i = 0; i < snapshot.pointer && cursor < lineMoves.length; i++) {
+      const lineIsLearner = (cursor % 2 === 0 ? "w" : "b") === userChar;
+      const playedIsLearner = (i % 2 === 0 ? "w" : "b") === userChar;
+      if (!lineIsLearner) {
+        if (!playedIsLearner) cursor++;
+      } else if (playedIsLearner && hist[i].uci.slice(0, 4) === lineMoves[cursor].uci.slice(0, 4)) {
+        cursor++;
+      }
+    }
+    return lineMoves[cursor] ?? null;
+  }, [snapshot.pointer, lineMoves, userChar]);
+
   const previewArrows = useMemo((): [string, string, string][] => {
     if (!analysis) return [];
     // Only suggest a move that is actually legal in the current position, so a
@@ -321,21 +344,20 @@ export function useChessGame(
         arrows.push([uci.slice(0, 2), uci.slice(2, 4), color]);
       }
     };
-    const lineUci = lineMoves[snapshot.pointer]?.uci ?? null;
-    const lineLegal = !!lineUci && legal.has(lineUci.slice(0, 4));
+    // Recommended tracks the line by board ply and falls back to the engine hint
+    // once that move is gone; Guided tracks the progress cursor (`guidedNext`).
+    const recUci = lineMoves[snapshot.pointer]?.uci ?? null;
+    const recLegal = !!recUci && legal.has(recUci.slice(0, 4));
 
     if (previewVisibility.sparring) add(analysis.previews.sparring.uci, ARROW_COLORS.sparring);
     if (previewVisibility.challenge) add(analysis.previews.challenge.uci, ARROW_COLORS.challenge);
-    // Recommended and Guided share one slot and both follow the selected line
-    // (by ply) while a legal line move exists, so they agree. Recommended wins
-    // when shown and falls back to the engine/book hint once the line is gone.
     if (previewVisibility.recommended) {
-      add(lineLegal ? lineUci : analysis.recommended.uci, ARROW_COLORS.recommended);
+      add(recLegal ? recUci : analysis.recommended.uci, ARROW_COLORS.recommended);
     } else if (previewVisibility.guided) {
-      add(lineUci, ARROW_COLORS.guided);
+      add(guidedNext?.uci ?? null, ARROW_COLORS.guided);
     }
     return arrows;
-  }, [analysis, previewVisibility, snapshot.fen, snapshot.pointer, lineMoves]);
+  }, [analysis, previewVisibility, snapshot.fen, snapshot.pointer, lineMoves, guidedNext]);
 
   const isUserTurn = snapshot.turn === userChar;
   const winner: Side | null =
@@ -353,6 +375,7 @@ export function useChessGame(
     winner,
     isAiThinking,
     analysis,
+    guidedNext,
     squareHighlights,
     previewArrows,
     previewVisibility,
