@@ -98,9 +98,6 @@ export function OpeningSelector({
   onToggleFavorite,
 }: Props) {
   const [recentExpanded, setRecentExpanded] = useState(false);
-  const searching = search.trim().length > 0;
-  const recentIds = new Set(recent.map((o) => o.id));
-  const rest = searching ? openings : openings.filter((o) => !recentIds.has(o.id));
   const recentShown = recentExpanded ? recent : recent.slice(0, RECENT_COLLAPSED);
 
   const row = (item: OpeningListItem) => (
@@ -117,9 +114,24 @@ export function OpeningSelector({
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {favorites.length > 0 && (
-        <div className="px-2 pb-2 border-b border-slate-800/60">
+        <div className="px-2 py-2 border-b border-slate-700/60 bg-slate-900/40">
           <SectionLabel>★ Favorites</SectionLabel>
           <div className="max-h-36 overflow-y-auto">{favorites.map(row)}</div>
+        </div>
+      )}
+
+      {recent.length > 0 && (
+        <div className="px-2 py-2 border-b border-slate-700/60 bg-slate-900/40">
+          <SectionLabel>Recently played</SectionLabel>
+          <div className="max-h-48 overflow-y-auto">{recentShown.map(row)}</div>
+          {recent.length > RECENT_COLLAPSED && (
+            <button
+              onClick={() => setRecentExpanded((x) => !x)}
+              className="w-full text-center text-xs text-purple-300 hover:text-purple-200 py-1"
+            >
+              {recentExpanded ? "Show less" : `Show ${recent.length - RECENT_COLLAPSED} more`}
+            </button>
+          )}
         </div>
       )}
 
@@ -135,31 +147,10 @@ export function OpeningSelector({
       <div className="overflow-y-auto flex-1 px-2 pb-2">
         {loading ? (
           <div className="text-center text-slate-500 text-sm py-8">Loading…</div>
+        ) : openings.length === 0 ? (
+          <div className="text-center text-slate-500 text-sm py-8">No openings match</div>
         ) : (
-          <>
-            {!searching && recent.length > 0 && (
-              <>
-                <SectionLabel>Recently played</SectionLabel>
-                {recentShown.map(row)}
-                {recent.length > RECENT_COLLAPSED && (
-                  <button
-                    onClick={() => setRecentExpanded((x) => !x)}
-                    className="w-full text-center text-xs text-purple-300 hover:text-purple-200 py-1"
-                  >
-                    {recentExpanded
-                      ? "Show less"
-                      : `Show ${recent.length - RECENT_COLLAPSED} more`}
-                  </button>
-                )}
-                <SectionLabel>All openings</SectionLabel>
-              </>
-            )}
-            {rest.length === 0 ? (
-              <div className="text-center text-slate-500 text-sm py-8">No openings match</div>
-            ) : (
-              rest.map(row)
-            )}
-          </>
+          openings.map(row)
         )}
       </div>
     </div>

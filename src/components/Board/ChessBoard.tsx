@@ -71,6 +71,7 @@ export function ChessBoard({
           onSquareClick={onSquareClick}
           customSquareStyles={squareHighlights}
           customArrows={customArrows as never}
+          areArrowsAllowed={false}
           arePiecesDraggable={!isAiThinking}
           customBoardStyle={{
             borderRadius: "8px",
