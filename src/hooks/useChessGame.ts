@@ -321,15 +321,18 @@ export function useChessGame(
         arrows.push([uci.slice(0, 2), uci.slice(2, 4), color]);
       }
     };
+    const lineUci = lineMoves[snapshot.pointer]?.uci ?? null;
+    const lineLegal = !!lineUci && legal.has(lineUci.slice(0, 4));
+
     if (previewVisibility.sparring) add(analysis.previews.sparring.uci, ARROW_COLORS.sparring);
     if (previewVisibility.challenge) add(analysis.previews.challenge.uci, ARROW_COLORS.challenge);
-    // Recommended and Guided share one slot: Recommended (the smart hint) wins
-    // when shown; otherwise Guided draws the selected line's move for the current
-    // ply — even after deviating — but only if it is still legal here.
+    // Recommended and Guided share one slot and both follow the selected line
+    // (by ply) while a legal line move exists, so they agree. Recommended wins
+    // when shown and falls back to the engine/book hint once the line is gone.
     if (previewVisibility.recommended) {
-      add(analysis.recommended.uci, ARROW_COLORS.recommended);
+      add(lineLegal ? lineUci : analysis.recommended.uci, ARROW_COLORS.recommended);
     } else if (previewVisibility.guided) {
-      add(lineMoves[snapshot.pointer]?.uci ?? null, ARROW_COLORS.guided);
+      add(lineUci, ARROW_COLORS.guided);
     }
     return arrows;
   }, [analysis, previewVisibility, snapshot.fen, snapshot.pointer, lineMoves]);
