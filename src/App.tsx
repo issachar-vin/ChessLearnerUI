@@ -5,8 +5,9 @@ import { Controls } from "./components/Controls/Controls";
 import { MoveList } from "./components/MoveList/MoveList";
 import { OpeningSelector } from "./components/OpeningSelector/OpeningSelector";
 import { useChessGame } from "./hooks/useChessGame";
+import { useOpeningLibrary } from "./hooks/useOpeningLibrary";
 import { useOpening, useOpenings } from "./hooks/useOpenings";
-import type { Mode, Side } from "./types/chess";
+import type { Mode, OpeningListItem, Side } from "./types/chess";
 
 export default function App() {
   const [selectedOpeningId, setSelectedOpeningId] = useState<string | null>(null);
@@ -17,6 +18,7 @@ export default function App() {
 
   const { openings, loading } = useOpenings(search);
   const { opening } = useOpening(selectedOpeningId);
+  const library = useOpeningLibrary();
 
   const game = useChessGame(selectedOpeningId, mode, strict, userSide);
 
@@ -29,6 +31,14 @@ export default function App() {
   const handleSelectSide = (s: Side) => {
     setUserSide(s);
     setSelectedOpeningId(null);
+  };
+
+  // Selecting (incl. from favorites/recent, which span both sides) records it
+  // as recently played and aligns the board to that opening's side.
+  const handleSelect = (item: OpeningListItem) => {
+    setSelectedOpeningId(item.id);
+    setUserSide(sideOf(item.move_count));
+    library.addRecent(item);
   };
 
   return (
@@ -74,11 +84,15 @@ export default function App() {
           </div>
           <OpeningSelector
             openings={visibleOpenings}
+            recent={library.recent}
+            favorites={library.favorites}
             loading={loading}
             selectedId={selectedOpeningId}
-            onSelect={setSelectedOpeningId}
+            onSelect={handleSelect}
             search={search}
             onSearchChange={setSearch}
+            isFavorite={library.isFavorite}
+            onToggleFavorite={library.toggleFavorite}
           />
         </aside>
 
