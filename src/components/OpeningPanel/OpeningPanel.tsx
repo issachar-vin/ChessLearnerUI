@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
 import type { OpeningListItem } from "../../types/chess";
+import { Marquee } from "../Marquee/Marquee";
 
 type Tab = "search" | "recent" | "favorites";
 
 interface Props {
   title: string;
-  subtitle?: ReactNode;
+  subtitle?: string;
   accentText: string; // literal tailwind text-color class for the active row's eco
   accentDot: string; // literal tailwind bg-color class for the title dot
   headerRight?: ReactNode;
@@ -63,11 +64,10 @@ function OpeningRow({
             {item.move_count} moves
           </span>
         </div>
-        <div
-          className={`text-sm font-medium mt-0.5 truncate ${selected ? "text-white" : "text-slate-200"}`}
-        >
-          {item.name}
-        </div>
+        <Marquee
+          text={item.name}
+          className={`text-sm font-medium mt-0.5 ${selected ? "text-white" : "text-slate-200"}`}
+        />
       </button>
       <button
         onClick={() => onToggleFavorite(item)}
@@ -139,7 +139,7 @@ export function OpeningPanel({
               {title}
             </h2>
           </div>
-          {subtitle && <div className="text-[11px] text-slate-500 mt-0.5 truncate">{subtitle}</div>}
+          {subtitle && <Marquee text={subtitle} className="text-[11px] text-slate-500 mt-0.5" />}
         </div>
         {headerRight}
       </div>
