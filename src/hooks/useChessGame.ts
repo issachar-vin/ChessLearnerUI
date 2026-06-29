@@ -25,7 +25,19 @@ const SQUARE_COLORS = {
   legalCapture: "inset 0 0 0 4px rgba(80, 200, 80, 1)",
   lastMove: "rgba(246, 246, 105, 0.45)",
   selected: "rgba(246, 246, 105, 0.65)",
+  check: "rgba(239, 68, 68, 0.55)",
 };
+
+export type GameResult = "checkmate" | "stalemate" | "draw" | null;
+
+function findKing(chess: Chess, color: "w" | "b"): string | null {
+  for (const row of chess.board()) {
+    for (const cell of row) {
+      if (cell && cell.type === "k" && cell.color === color) return cell.square;
+    }
+  }
+  return null;
+}
 
 export interface PreviewVisibility {
   recommended: boolean;
@@ -68,6 +80,9 @@ export function useChessGame(
     pointer: 0,
     length: 0,
     lastMove: null as string | null,
+    inCheck: false,
+    checkedKingSquare: null as string | null,
+    result: null as GameResult,
   });
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
@@ -86,12 +101,21 @@ export function useChessGame(
   const userChar = userSide === "white" ? "w" : "b";
 
   const sync = useCallback((lastMove: string | null) => {
+    const chess = chessRef.current;
+    const inCheck = chess.inCheck();
+    let result: GameResult = null;
+    if (chess.isCheckmate()) result = "checkmate";
+    else if (chess.isStalemate()) result = "stalemate";
+    else if (chess.isDraw()) result = "draw";
     setSnapshot({
-      fen: chessRef.current.fen(),
-      turn: chessRef.current.turn(),
+      fen: chess.fen(),
+      turn: chess.turn(),
       pointer: pointerRef.current,
       length: historyRef.current.length,
       lastMove,
+      inCheck,
+      checkedKingSquare: inCheck ? findKing(chess, chess.turn()) : null,
+      result,
     });
   }, []);
 
@@ -257,6 +281,9 @@ export function useChessGame(
       highlights[from] = { background: SQUARE_COLORS.lastMove };
       highlights[to] = { background: SQUARE_COLORS.lastMove };
     }
+    if (snapshot.checkedKingSquare) {
+      highlights[snapshot.checkedKingSquare] = { background: SQUARE_COLORS.check };
+    }
     if (selectedSquare) {
       highlights[selectedSquare] = { background: SQUARE_COLORS.selected };
       const legal = chessRef.current
@@ -271,7 +298,7 @@ export function useChessGame(
       }
     }
     return highlights;
-  }, [snapshot.lastMove, selectedSquare]);
+  }, [snapshot.lastMove, snapshot.checkedKingSquare, selectedSquare]);
 
   const previewArrows = useMemo((): [string, string, string][] => {
     if (!analysis) return [];
@@ -287,6 +314,8 @@ export function useChessGame(
   }, [analysis, previewVisibility]);
 
   const isUserTurn = snapshot.turn === userChar;
+  const winner: Side | null =
+    snapshot.result === "checkmate" ? (snapshot.turn === "w" ? "black" : "white") : null;
 
   return {
     fen: snapshot.fen,
@@ -294,6 +323,10 @@ export function useChessGame(
     pointer: snapshot.pointer,
     length: snapshot.length,
     isUserTurn,
+    sideToMove: snapshot.turn,
+    inCheck: snapshot.inCheck,
+    result: snapshot.result,
+    winner,
     isAiThinking,
     analysis,
     squareHighlights,

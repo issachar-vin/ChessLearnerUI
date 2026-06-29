@@ -21,11 +21,14 @@ export default function App() {
   const game = useChessGame(selectedOpeningId, mode, strict, userSide);
 
   // A line ends on its characteristic move, so ply-count parity gives the side
-  // the opening belongs to: odd plies → White moved last, even → Black.
-  const handleSelect = (id: string) => {
-    setSelectedOpeningId(id);
-    const item = openings.find((o) => o.id === id);
-    if (item) setUserSide(item.move_count % 2 === 1 ? "white" : "black");
+  // the opening belongs to: odd plies → White, even → Black. The side toggle
+  // both picks the colour you play and filters the list to that colour's lines.
+  const sideOf = (moveCount: number): Side => (moveCount % 2 === 1 ? "white" : "black");
+  const visibleOpenings = openings.filter((o) => sideOf(o.move_count) === userSide);
+
+  const handleSelectSide = (s: Side) => {
+    setUserSide(s);
+    setSelectedOpeningId(null);
   };
 
   return (
@@ -59,7 +62,7 @@ export default function App() {
               {(["white", "black"] as Side[]).map((s) => (
                 <button
                   key={s}
-                  onClick={() => setUserSide(s)}
+                  onClick={() => handleSelectSide(s)}
                   className={`px-2 py-1 capitalize ${
                     userSide === s ? "bg-purple-600/40 text-white" : "text-slate-400"
                   }`}
@@ -70,10 +73,10 @@ export default function App() {
             </div>
           </div>
           <OpeningSelector
-            openings={openings}
+            openings={visibleOpenings}
             loading={loading}
             selectedId={selectedOpeningId}
-            onSelect={handleSelect}
+            onSelect={setSelectedOpeningId}
             search={search}
             onSearchChange={setSearch}
           />
@@ -101,22 +104,47 @@ export default function App() {
                 previewVisibility={game.previewVisibility}
                 onPreviewChange={game.setPreviewVisibility}
               />
+              <div className="flex items-center gap-2 text-sm">
+                {game.result ? (
+                  <span className="font-semibold text-purple-300 capitalize">
+                    {game.result === "checkmate"
+                      ? `Checkmate — ${game.winner} wins`
+                      : game.result}
+                  </span>
+                ) : (
+                  <>
+                    <span
+                      className={`w-3 h-3 rounded-full border ${
+                        game.sideToMove === "w"
+                          ? "bg-slate-100 border-slate-400"
+                          : "bg-slate-900 border-slate-500"
+                      }`}
+                    />
+                    <span className="text-slate-200">
+                      {game.sideToMove === "w" ? "White" : "Black"} to move
+                    </span>
+                    <span className="text-slate-500 text-xs">
+                      {game.isAiThinking ? "(opponent thinking…)" : game.isUserTurn ? "(you)" : "(opponent)"}
+                    </span>
+                    {game.inCheck && (
+                      <span className="text-[11px] font-semibold bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded animate-pulse">
+                        Check
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
               <ChessBoard
                 fen={game.fen}
                 boardOrientation={userSide}
                 squareHighlights={game.squareHighlights}
                 customArrows={game.previewArrows}
                 isAiThinking={game.isAiThinking}
+                result={game.result}
+                winner={game.winner}
                 onPieceDrop={game.onPieceDrop}
                 onSquareClick={game.onSquareClick}
               />
-              <div className="text-xs text-slate-600 text-center">
-                {game.isAiThinking
-                  ? "Opponent is thinking…"
-                  : game.isUserTurn
-                    ? `Your turn — playing as ${userSide}`
-                    : "Move a piece for either side, or press ▶"}
-              </div>
             </>
           )}
         </div>
