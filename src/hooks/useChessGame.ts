@@ -6,6 +6,7 @@ import type {
   AnalyzeResponse,
   HistMove,
   Mode,
+  MoveEntry,
   Side,
   SquareHighlight,
 } from "../types/chess";
@@ -68,6 +69,7 @@ export function useChessGame(
   mode: Mode,
   strict: boolean,
   userSide: Side,
+  lineMoves: MoveEntry[],
 ) {
   // Refs are the source of truth; `snapshot` is the render projection of them.
   const chessRef = useRef(new Chess());
@@ -319,14 +321,18 @@ export function useChessGame(
         arrows.push([uci.slice(0, 2), uci.slice(2, 4), color]);
       }
     };
-    // Mode arrows first; recommended is drawn last so it stays on top when two
-    // sources point at the same square (e.g. off-book, recommended == challenge).
-    if (previewVisibility.guided) add(analysis.previews.guided.uci, ARROW_COLORS.guided);
     if (previewVisibility.sparring) add(analysis.previews.sparring.uci, ARROW_COLORS.sparring);
     if (previewVisibility.challenge) add(analysis.previews.challenge.uci, ARROW_COLORS.challenge);
-    if (previewVisibility.recommended) add(analysis.recommended.uci, ARROW_COLORS.recommended);
+    // Recommended and Guided share one slot: Recommended (the smart hint) wins
+    // when shown; otherwise Guided draws the selected line's move for the current
+    // ply — even after deviating — but only if it is still legal here.
+    if (previewVisibility.recommended) {
+      add(analysis.recommended.uci, ARROW_COLORS.recommended);
+    } else if (previewVisibility.guided) {
+      add(lineMoves[snapshot.pointer]?.uci ?? null, ARROW_COLORS.guided);
+    }
     return arrows;
-  }, [analysis, previewVisibility, snapshot.fen]);
+  }, [analysis, previewVisibility, snapshot.fen, snapshot.pointer, lineMoves]);
 
   const isUserTurn = snapshot.turn === userChar;
   const winner: Side | null =

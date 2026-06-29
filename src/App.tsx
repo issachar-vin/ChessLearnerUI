@@ -20,7 +20,7 @@ export default function App() {
   const { opening } = useOpening(selectedOpeningId);
   const library = useOpeningLibrary();
 
-  const game = useChessGame(selectedOpeningId, mode, strict, userSide);
+  const game = useChessGame(selectedOpeningId, mode, strict, userSide, opening?.moves ?? []);
 
   // A line ends on its characteristic move, so ply-count parity gives the side
   // the opening belongs to: odd plies → White, even → Black. The side toggle
