@@ -378,13 +378,13 @@ export function useChessGame(
   const isUserTurn = snapshot.turn === userChar;
 
   // The move autoplay (and the ▶ step) makes for the learner: the opening-line
-  // step while it's legal, else the engine-backed recommendation so a divergent
-  // opponent can never leave it parked on an illegal (unplayable) move and stall.
-  // Null only once the opening is complete — nothing left to simulate.
+  // step while it's legal, else the engine-backed recommendation — so a divergent
+  // opponent can never park it on an illegal move, and it keeps playing past the
+  // end of the line. Null only when there's no move at all (game over / no analysis).
   const autoPlayMove = useMemo(() => {
     const line = guidedNext?.uci ?? null;
     const rec = analysis?.recommended.uci ?? null;
-    if (!line) return null;
+    if (!line) return rec;
     const legal = new Set(
       new Chess(snapshot.fen).moves({ verbose: true }).map((mv) => `${mv.from}${mv.to}`)
     );
