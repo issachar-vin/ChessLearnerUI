@@ -138,11 +138,9 @@ export default function App() {
 
       <header className="border-b border-slate-800/60 px-6 py-4 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="text-2xl select-none">♞</div>
+          <img src="/logo.png" alt="Chess Bro" className="h-10 w-auto select-none" />
           <div>
-            <h1 className="font-playfair text-xl font-bold text-white tracking-tight">
-              Chess Learner
-            </h1>
+            <h1 className="font-playfair text-xl font-bold text-white tracking-tight">Chess Bro</h1>
             <p className="text-xs text-slate-500">Master openings, counters, and replies</p>
           </div>
           <div className="ml-auto">
