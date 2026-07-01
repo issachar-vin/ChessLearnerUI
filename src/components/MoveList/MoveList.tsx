@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { AnalyzeResponse, HistMove, MoveEntry, ReviewResponse } from "../../types/chess";
 import { MOVE_CLASS_META, MOVE_CLASS_ORDER } from "../../lib/moveClass";
+import { MoveIcon } from "../MoveIcon/MoveIcon";
 import { Tooltip } from "../Tooltip/Tooltip";
 import { HELP } from "../Tooltip/help";
 
@@ -72,7 +73,7 @@ export function MoveList({
         }`}
       >
         <span className="truncate">{move.san}</span>
-        {meta && <span className="text-[11px] leading-none shrink-0 font-bold">{meta.symbol}</span>}
+        {cls && meta && <MoveIcon cls={cls} size={14} />}
       </button>
     );
   };
@@ -219,17 +220,15 @@ function ReviewSummary({ review }: { review: ReviewResponse }) {
           Black <span className="font-semibold text-white">{review.black_accuracy ?? "—"}%</span>
         </span>
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
         {counts.map(({ cls, n }) => (
           <span
             key={cls}
-            className="text-[11px] px-1.5 py-0.5 rounded font-medium"
-            style={{
-              backgroundColor: `${MOVE_CLASS_META[cls].color}22`,
-              color: MOVE_CLASS_META[cls].color,
-            }}
+            className="flex items-center gap-1 text-xs"
+            title={MOVE_CLASS_META[cls].label}
           >
-            {MOVE_CLASS_META[cls].label} {n}
+            <MoveIcon cls={cls} size={14} />
+            <span className="font-semibold text-slate-200">{n}</span>
           </span>
         ))}
       </div>
