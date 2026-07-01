@@ -71,17 +71,6 @@ export function PlayerArea({
               {subtitle}
             </span>
           )}
-          {isActive && (
-            <span
-              key={name}
-              className={`text-2xl leading-none animate-knight-hop ${
-                light ? "text-amber-600" : "text-amber-300"
-              }`}
-              title="Current turn"
-            >
-              ♞
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-2 mt-0.5 h-5">
           <CapturedRow captured={captured} color={capturedColor} light={light} />
