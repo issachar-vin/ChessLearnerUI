@@ -64,7 +64,7 @@ function buildBoard(history: HistMove[], upto: number): Chess {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const AUTOPLAY_DELAY_MS = 450;
+const REPLAY_DELAY_MS = 600;
 
 export function useChessGame(
   openingId: string | null,
@@ -72,7 +72,8 @@ export function useChessGame(
   strict: boolean,
   userSide: Side,
   lineMoves: MoveEntry[],
-  aiOpeningId: string | null
+  aiOpeningId: string | null,
+  freePlay: boolean
 ) {
   // Refs are the source of truth; `snapshot` is the render projection of them.
   const chessRef = useRef(new Chess());
@@ -82,6 +83,10 @@ export function useChessGame(
   const analysisSeq = useRef(0);
   // Latest move autoplay/▶ would make for the learner (line step, else the hint).
   const autoPlayMoveRef = useRef<string | null>(null);
+  // Set when a PGN was just loaded so the reset effect doesn't wipe it.
+  const pendingLoadRef = useRef(false);
+  // The board is live when an opening is selected or free play / a PGN is loaded.
+  const active = openingId !== null || freePlay;
 
   const [snapshot, setSnapshot] = useState({
     fen: STARTING_FEN,
@@ -102,7 +107,7 @@ export function useChessGame(
     sparring: false,
     challenge: false,
   });
-  const [autoPlay, setAutoPlay] = useState(false);
+  const [replaying, setReplaying] = useState(false);
 
   // Mirror the latest props into a ref so move handlers never read stale values.
   const cfg = useRef({ openingId, mode, strict, userSide, aiOpeningId, analysis });
@@ -130,7 +135,7 @@ export function useChessGame(
   }, []);
 
   const fetchAnalysis = useCallback(async () => {
-    if (!cfg.current.openingId) return;
+    // Called only when the board is active; opening_id may be null (free play).
     const seq = ++analysisSeq.current;
     const moves = historyRef.current.slice(0, pointerRef.current).map((m) => m.uci);
     try {
@@ -191,26 +196,75 @@ export function useChessGame(
     setIsAiThinking(false);
     sync(null);
     // If the learner plays the second-moving side, the opponent opens the game.
-    if (openingId && chessRef.current.turn() !== userChar) {
+    if (active && chessRef.current.turn() !== userChar) {
       void triggerAiMove();
     }
-  }, [openingId, userChar, sync, triggerAiMove]);
+  }, [active, userChar, sync, triggerAiMove]);
+
+  // Load a game (e.g. from a PGN) for replay/analysis: history is set, the board
+  // sits at the start so ◀ ▶ step through it. No AI reply is triggered.
+  const loadGame = useCallback(
+    (uciMoves: string[]) => {
+      const chess = new Chess();
+      const hist: HistMove[] = [];
+      for (const uci of uciMoves) {
+        try {
+          const applied = chess.move({
+            from: uci.slice(0, 2),
+            to: uci.slice(2, 4),
+            promotion: uci.slice(4, 5) || "q",
+          });
+          if (!applied) break;
+          hist.push({ san: applied.san, uci: applied.lan });
+        } catch {
+          break;
+        }
+      }
+      chessRef.current = new Chess();
+      historyRef.current = hist;
+      pointerRef.current = 0;
+      analysisSeq.current++;
+      pendingLoadRef.current = true;
+      setAnalysis(null);
+      setSelectedSquare(null);
+      setIsAiThinking(false);
+      sync(null);
+    },
+    [sync]
+  );
 
   useEffect(() => {
+    if (pendingLoadRef.current) {
+      pendingLoadRef.current = false;
+      return;
+    }
     reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openingId, userSide]);
+  }, [openingId, userSide, freePlay]);
 
-  // Refresh hints/previews whenever it lands on the learner's turn.
+  // Refresh hints/previews on the learner's turn, and for any earlier position
+  // being reviewed (e.g. stepping through a loaded PGN) regardless of side — so
+  // the challenge/etc. arrows are available when studying a move.
   useEffect(() => {
-    if (!openingId || isAiThinking) return;
-    if (snapshot.turn !== userChar) return;
+    if (!active || isAiThinking) return;
+    const reviewing = snapshot.pointer < snapshot.length;
+    if (snapshot.turn !== userChar && !reviewing) return;
     void fetchAnalysis();
-  }, [snapshot.fen, snapshot.turn, openingId, isAiThinking, userChar, fetchAnalysis]);
+  }, [
+    snapshot.fen,
+    snapshot.turn,
+    snapshot.pointer,
+    snapshot.length,
+    active,
+    isAiThinking,
+    userChar,
+    fetchAnalysis,
+  ]);
 
   const applyMove = useCallback(
     (from: string, to: string): boolean => {
       if (isAiThinking) return false;
+      setReplaying(false);
       const movedSide = chessRef.current.turn();
       const { mode: m, strict: s, analysis: a } = cfg.current;
 
@@ -260,18 +314,39 @@ export function useChessGame(
     [sync]
   );
 
-  const undo = useCallback(() => navigate(pointerRef.current - 1), [navigate]);
-  // At the live tip, ▶ plays the move autoplay would make rather than navigating
-  // forward — letting the learner step the opening one move at a time.
+  const undo = useCallback(() => {
+    setReplaying(false);
+    navigate(pointerRef.current - 1);
+  }, [navigate]);
+  // Forward steps through recorded history; at the live tip it plays one autoplay
+  // move instead (unless the game is already over).
   const redo = useCallback(() => {
+    setReplaying(false);
     if (pointerRef.current < historyRef.current.length) {
       navigate(pointerRef.current + 1);
       return;
     }
     const uci = autoPlayMoveRef.current;
-    if (uci) applyMove(uci.slice(0, 2), uci.slice(2, 4));
+    if (uci && !chessRef.current.isGameOver()) applyMove(uci.slice(0, 2), uci.slice(2, 4));
   }, [navigate, applyMove]);
-  const jumpTo = useCallback((ply: number) => navigate(ply), [navigate]);
+  const jumpTo = useCallback(
+    (ply: number) => {
+      setReplaying(false);
+      navigate(ply);
+    },
+    [navigate]
+  );
+  // Play/pause replaying the recorded moves; starting from the end restarts it.
+  const toggleReplay = useCallback(() => {
+    if (replaying) {
+      setReplaying(false);
+      return;
+    }
+    if (historyRef.current.length > 0 && pointerRef.current >= historyRef.current.length) {
+      navigate(0);
+    }
+    setReplaying(true);
+  }, [replaying, navigate]);
 
   const onPieceDrop = useCallback(
     (source: string, target: string) => applyMove(source, target),
@@ -394,16 +469,17 @@ export function useChessGame(
   const atTip = snapshot.pointer >= snapshot.length;
   const nextIsAutoPlay = atTip && isUserTurn && !isAiThinking && !snapshot.result && !!autoPlayMove;
 
-  // Autoplay: keep making the learner's move at the live tip so the opening plays
-  // itself out; toggling off hands control back for a custom move.
+  // Replay: step forward through the recorded history in succession (the current
+  // move highlights as it advances), stopping at the end of the line.
   useEffect(() => {
-    if (!autoPlay || !nextIsAutoPlay || !autoPlayMove) return;
-    const t = setTimeout(
-      () => applyMove(autoPlayMove.slice(0, 2), autoPlayMove.slice(2, 4)),
-      AUTOPLAY_DELAY_MS
-    );
+    if (!replaying || isAiThinking) return;
+    if (snapshot.pointer >= snapshot.length) {
+      setReplaying(false);
+      return;
+    }
+    const t = setTimeout(() => navigate(snapshot.pointer + 1), REPLAY_DELAY_MS);
     return () => clearTimeout(t);
-  }, [autoPlay, nextIsAutoPlay, autoPlayMove, applyMove]);
+  }, [replaying, isAiThinking, snapshot.pointer, snapshot.length, navigate]);
 
   const winner: Side | null =
     snapshot.result === "checkmate" ? (snapshot.turn === "w" ? "black" : "white") : null;
@@ -427,8 +503,8 @@ export function useChessGame(
     setPreviewVisibility,
     canUndo: snapshot.pointer > 0,
     canRedo: snapshot.pointer < snapshot.length,
-    autoPlay,
-    setAutoPlay,
+    replaying,
+    toggleReplay,
     nextIsAutoPlay,
     onPieceDrop,
     onSquareClick,
@@ -436,5 +512,6 @@ export function useChessGame(
     redo,
     jumpTo,
     reset,
+    loadGame,
   };
 }

@@ -5,15 +5,20 @@ against the backend AI.
 
 ## Layout
 
-Three-pane layout in [src/App.tsx](src/App.tsx):
-- **Left** — two stacked `OpeningPanel`s (top = **AI opponent**, bottom = **You**), each with
-  Recent / Favorites / Search tabs. The two keep **separate** recent/favorite/search state
-  (`useOpeningLibrary("ai" | "user")`, namespaced localStorage keys; two `useOpenings`
-  instances). The user panel hosts the White/Black side toggle; the AI panel lists the
-  opposite colour's lines and a **Default ✕** to clear the AI bias.
-- **Center** — `Controls`, `ChessBoard`, and a `PlayerArea` above (AI) and below (you).
-- **Right** — `MoveList` (clickable history, live opening name, per-mode next-move hints) and
-  `DrawTracker`.
+Full-bleed three-pane layout in [src/App.tsx](src/App.tsx) (columns flush to the screen edges):
+- **Left** — a **Free play / Load PGN** toolbar over two stacked `OpeningPanel`s (top = **AI
+  opponent**, bottom = **You**), each with Recent / Favorites / Search tabs. The two keep
+  **separate** recent/favorite/search state (`useOpeningLibrary("ai" | "user")`, namespaced
+  localStorage; two `useOpenings` instances). The user panel hosts the White/Black side
+  toggle; the AI panel lists the opposite colour's lines and a **Default ✕** to clear the bias.
+- **Center** — `Controls` (mode / strict / reset), the turn status, a `PlayerArea` above (AI)
+  and below (you) that **flex-fill the column height** (`fill` prop), the `ChessBoard`, and
+  `PreviewToggles` at the bottom.
+- **Right** — `MoveList` (opening name, next-move hints, clickable history with per-move
+  analysis badges, the ◀ ▶ nav bar, and the Analyse button / accuracy panel) and `DrawTracker`.
+
+The board is shown whenever the game is **active** — an opening is selected, **Free play** is
+on, or a **PGN** was loaded (`PgnLoader` parses it with chess.js → `game.loadGame`).
 
 Components live under `src/components/` (`Board`, `Controls`, `MoveList`, `OpeningPanel`,
 `PlayerArea`, `Profile`, `Tooltip`, `DrawTracker`, `PieceIcon`). Board rendering uses
@@ -56,6 +61,12 @@ stale values.
   strict reference move). `ai-move` is sent with the current `mode` and the optional
   `ai_opening_id` — the AI follows that opening (FEN-matched on the backend) until off-line,
   then reverts to `mode`.
+- **Free play / PGN** (`freePlay` prop, `loadGame`): the hook is "active" when an opening is
+  set **or** `freePlay` is on. Free play starts an empty board (AI still replies, previews and
+  analysis work with a null opening). `loadGame(uciMoves)` sets the history and parks the board
+  at the start for ◀ ▶ replay; a `pendingLoadRef` stops the reset effect wiping a just-loaded
+  game. **Game review**: `App` calls `/api/game/review` and passes per-move classifications to
+  `MoveList` for badges; the result is cleared whenever the move list length changes.
 - **Autoplay** (`autoPlay`/`setAutoPlay`): at the live tip on the learner's turn it plays the
   learner's move automatically (`guidedNext` step, else `analysis.recommended`) so the opening
   runs itself out. The same move backs `nextIsAutoPlay`: with autoplay off, the ▶ button at the

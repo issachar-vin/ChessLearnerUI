@@ -67,6 +67,34 @@ export interface HistMove {
   uci: string;
 }
 
+export type MoveClass =
+  | "brilliant"
+  | "great"
+  | "best"
+  | "excellent"
+  | "good"
+  | "inaccuracy"
+  | "mistake"
+  | "blunder"
+  | "unknown";
+
+export interface MoveReview {
+  ply: number;
+  uci: string;
+  san: string | null;
+  classification: MoveClass;
+  cpl: number;
+  best_uci: string | null;
+  best_san: string | null;
+}
+
+export interface ReviewResponse {
+  engine_available: boolean;
+  moves: MoveReview[];
+  white_accuracy: number | null;
+  black_accuracy: number | null;
+}
+
 export type SquareHighlight = {
   [square: string]: { background?: string; borderRadius?: string; boxShadow?: string };
 };

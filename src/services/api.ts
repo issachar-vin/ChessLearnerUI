@@ -4,6 +4,7 @@ import type {
   Mode,
   Opening,
   OpeningListItem,
+  ReviewResponse,
 } from "../types/chess";
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
@@ -45,6 +46,12 @@ export const api = {
       ai_opening_id: string | null;
     }) =>
       request<AIMoveResponse>("/game/ai-move", {
+        method: "POST",
+        body: JSON.stringify(params),
+      }),
+
+    review: (params: { moves: string[]; think_ms?: number }) =>
+      request<ReviewResponse>("/game/review", {
         method: "POST",
         body: JSON.stringify(params),
       }),

@@ -44,12 +44,13 @@ export const HELP: Record<string, Help> = {
     ),
   },
   nav: {
-    title: "Undo / Redo",
+    title: "Move controls",
     body: (
       <p>
-        Step backward (◀) and forward (▶) through the move history. At the latest move, ▶ turns
-        green and plays the autoplay move for you instead of navigating. Navigating never triggers
-        an opponent reply — only playing your own colour does.
+        <span className="text-slate-200">◀</span> back a move,{" "}
+        <span className="text-slate-200">▶</span> play through the moves in order,{" "}
+        <span className="text-slate-200">▶❘</span> forward a move. At the end of the line the
+        forward button turns green and plays one move for you (unless the game is over).
       </p>
     ),
   },
