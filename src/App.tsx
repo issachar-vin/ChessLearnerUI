@@ -311,6 +311,7 @@ export default function App() {
               guidedNext={game.guidedNext}
               trainingName={opening?.name ?? null}
               active={active}
+              previewVisibility={game.previewVisibility}
               canUndo={game.canUndo}
               canRedo={game.canRedo}
               nextIsAutoPlay={game.nextIsAutoPlay}

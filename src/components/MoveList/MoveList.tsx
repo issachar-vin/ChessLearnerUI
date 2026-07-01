@@ -7,6 +7,7 @@ import type {
   ReviewResponse,
   Side,
 } from "../../types/chess";
+import { ARROW_COLORS, type PreviewVisibility } from "../../hooks/useChessGame";
 import { MOVE_CLASS_META, MOVE_CLASS_ORDER } from "../../lib/moveClass";
 import { MoveIcon } from "../MoveIcon/MoveIcon";
 import { Tooltip } from "../Tooltip/Tooltip";
@@ -20,6 +21,7 @@ interface Props {
   guidedNext: MoveEntry | null;
   trainingName: string | null;
   active: boolean;
+  previewVisibility: PreviewVisibility;
   canUndo: boolean;
   canRedo: boolean;
   nextIsAutoPlay: boolean;
@@ -43,6 +45,7 @@ export function MoveList({
   guidedNext,
   trainingName,
   active,
+  previewVisibility,
   canUndo,
   canRedo,
   nextIsAutoPlay,
@@ -57,11 +60,11 @@ export function MoveList({
   reviewSide,
   onReviewSide,
 }: Props) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-
+  // Keep the current move in view (e.g. while replaying a PGN).
+  const currentRowRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [history.length]);
+    currentRowRef.current?.scrollIntoView({ block: "nearest" });
+  }, [pointer]);
 
   const pairs: Array<{ moveNum: number; white?: HistMove; black?: HistMove }> = [];
   for (let i = 0; i < history.length; i += 2) {
@@ -104,11 +107,19 @@ export function MoveList({
 
   const openingName = trainingName ?? analysis?.name ?? null;
 
+  const HINTS = [
+    { key: "recommended", label: "Recommended", san: analysis?.recommended.san ?? null },
+    { key: "guided", label: "Guided", san: guidedNext?.san ?? null },
+    { key: "sparring", label: "Sparring", san: analysis?.previews.sparring.san ?? null },
+    { key: "challenge", label: "Challenge", san: analysis?.previews.challenge.san ?? null },
+  ] as const;
+  const visibleHints = HINTS.filter((h) => previewVisibility[h.key]);
+
   return (
     <div className="flex flex-col gap-3 h-full">
       {active && (
         <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/50">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 h-4">
             <span className="text-purple-400 text-xs font-semibold uppercase tracking-wider">
               Opening
             </span>
@@ -145,35 +156,20 @@ export function MoveList({
         </div>
       )}
 
-      {active && (
+      {active && visibleHints.length > 0 && (
         <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/50 space-y-1.5">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
             Next move
           </div>
-          <HintRow
-            label="Recommended"
-            san={analysis?.recommended.san ?? null}
-            color="#10b981"
-            loading={!analysis}
-          />
-          <HintRow
-            label="Guided"
-            san={guidedNext?.san ?? null}
-            color="#3b82f6"
-            loading={!analysis}
-          />
-          <HintRow
-            label="Sparring"
-            san={analysis?.previews.sparring.san ?? null}
-            color="#f59e0b"
-            loading={!analysis}
-          />
-          <HintRow
-            label="Challenge"
-            san={analysis?.previews.challenge.san ?? null}
-            color="#a855f7"
-            loading={!analysis}
-          />
+          {visibleHints.map((h) => (
+            <HintRow
+              key={h.key}
+              label={h.label}
+              san={h.san}
+              color={ARROW_COLORS[h.key]}
+              loading={!analysis}
+            />
+          ))}
         </div>
       )}
 
@@ -189,6 +185,9 @@ export function MoveList({
               {pairs.map(({ moveNum, white, black }, rowIdx) => (
                 <div
                   key={moveNum}
+                  ref={
+                    pointer > 0 && Math.ceil(pointer / 2) === moveNum ? currentRowRef : undefined
+                  }
                   className={`flex items-center gap-2 px-2 py-0.5 rounded ${
                     rowIdx % 2 === 1 ? "bg-slate-700/25" : ""
                   }`}
@@ -200,7 +199,6 @@ export function MoveList({
               ))}
             </div>
           )}
-          <div ref={bottomRef} />
         </div>
         <Tooltip {...HELP.nav} className="w-full">
           <div className="flex w-full border-t border-slate-700/50">
