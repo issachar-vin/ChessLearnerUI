@@ -1,11 +1,5 @@
 import { useEffect, useRef } from "react";
-import type {
-  AnalyzeResponse,
-  HistMove,
-  MoveClass,
-  MoveEntry,
-  ReviewResponse,
-} from "../../types/chess";
+import type { AnalyzeResponse, HistMove, MoveEntry, ReviewResponse } from "../../types/chess";
 import { MOVE_CLASS_META, MOVE_CLASS_ORDER } from "../../lib/moveClass";
 import { Tooltip } from "../Tooltip/Tooltip";
 import { HELP } from "../Tooltip/help";
@@ -28,16 +22,6 @@ interface Props {
   analyzing: boolean;
   canAnalyze: boolean;
   onAnalyze: () => void;
-}
-
-function Badge({ cls }: { cls: MoveClass }) {
-  const meta = MOVE_CLASS_META[cls];
-  if (!meta.symbol) return null;
-  return (
-    <sup className="ml-0.5 font-bold" style={{ color: meta.color }}>
-      {meta.symbol}
-    </sup>
-  );
 }
 
 export function MoveList({
@@ -74,15 +58,21 @@ export function MoveList({
     if (!move) return <span className="w-16" />;
     const isCurrent = index + 1 === pointer;
     const cls = review?.moves[index]?.classification;
+    const meta = cls && cls !== "unknown" ? MOVE_CLASS_META[cls] : null;
     return (
       <button
         onClick={() => onJump(index + 1)}
-        className={`w-16 text-left font-mono rounded px-1 ${
-          isCurrent ? "bg-purple-600/40 text-white" : "text-slate-200 hover:bg-slate-700/50"
+        style={meta ? { backgroundColor: `${meta.color}2b`, color: meta.color } : undefined}
+        className={`w-16 font-mono rounded px-1 flex items-center justify-between gap-1 ${
+          meta
+            ? `font-semibold ${isCurrent ? "ring-1 ring-inset ring-white/60" : ""}`
+            : isCurrent
+              ? "bg-purple-600/40 text-white"
+              : "text-slate-200 hover:bg-slate-700/50"
         }`}
       >
-        {move.san}
-        {cls && <Badge cls={cls} />}
+        <span className="truncate">{move.san}</span>
+        {meta && <span className="text-[11px] leading-none shrink-0 font-bold">{meta.symbol}</span>}
       </button>
     );
   };
