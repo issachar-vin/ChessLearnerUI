@@ -20,6 +20,8 @@ interface Props {
   canUndo: boolean;
   canRedo: boolean;
   nextIsAutoPlay: boolean;
+  autoPlay: boolean;
+  onToggleAutoPlay: () => void;
   onUndo: () => void;
   onRedo: () => void;
   review: ReviewResponse | null;
@@ -48,6 +50,8 @@ export function MoveList({
   canUndo,
   canRedo,
   nextIsAutoPlay,
+  autoPlay,
+  onToggleAutoPlay,
   onUndo,
   onRedo,
   review,
@@ -152,22 +156,33 @@ export function MoveList({
               onClick={onUndo}
               disabled={!canUndo}
               aria-label="Back"
-              className="flex-1 py-2 text-slate-300 hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="w-1/3 py-2 text-slate-300 hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               ◀
+            </button>
+            <button
+              onClick={onToggleAutoPlay}
+              aria-label={autoPlay ? "Pause autoplay" : "Autoplay"}
+              className={`w-1/3 py-2 border-l border-slate-700/50 font-semibold ${
+                autoPlay
+                  ? "bg-emerald-600/90 text-white hover:bg-emerald-600"
+                  : "text-emerald-400 hover:bg-emerald-500/15"
+              }`}
+            >
+              {autoPlay ? "❚❚" : "▶"}
             </button>
             <button
               onClick={onRedo}
               disabled={!canRedo && !nextIsAutoPlay}
               aria-label={nextIsAutoPlay ? "Play autoplay move" : "Forward"}
               title={nextIsAutoPlay ? "Plays the autoplay move (not history)" : undefined}
-              className={`flex-1 py-2 border-l border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed ${
+              className={`w-1/3 py-2 border-l border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed ${
                 nextIsAutoPlay && !canRedo
                   ? "text-emerald-400 hover:bg-emerald-500/15"
                   : "text-slate-300 hover:bg-slate-700/50"
               }`}
             >
-              ▶
+              ▶❘
             </button>
           </div>
         </Tooltip>

@@ -44,6 +44,10 @@
     animation: marquee 4s linear infinite alternate;
     will-change: transform;
   }
+
+  .animate-turn-pulse {
+    animation: turnPulse 1.8s ease-in-out infinite;
+  }
 }
 
 @keyframes fadeIn {
@@ -85,6 +89,16 @@
   }
   90% {
     transform: translateY(-2px);
+  }
+}
+
+@keyframes turnPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(168, 85, 247, 0.3);
   }
 }
 

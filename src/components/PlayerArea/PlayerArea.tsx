@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 import type { PieceType } from "../../types/chess";
 import { PieceIcon } from "../PieceIcon/PieceIcon";
-import { Tooltip } from "../Tooltip/Tooltip";
-import { HELP } from "../Tooltip/help";
 
 interface Props {
   name: string;
@@ -12,9 +10,6 @@ interface Props {
   capturedColor: "w" | "b";
   scoreDiff: number;
   isActive: boolean;
-  fill?: boolean;
-  autoPlay?: boolean;
-  onToggleAutoPlay?: () => void;
 }
 
 function CapturedRow({
@@ -50,21 +45,17 @@ export function PlayerArea({
   capturedColor,
   scoreDiff,
   isActive,
-  fill,
-  autoPlay,
-  onToggleAutoPlay,
 }: Props) {
   // White pieces read fine on the dark card; the side capturing black pieces gets
   // a light card background so they stay legible, with text recoloured to match.
   const light = capturedColor === "b";
   const base = light ? "bg-slate-300 border-slate-400" : "bg-slate-800/40 border-slate-700/50";
-  const active = isActive ? "border-purple-500/70 ring-2 ring-purple-500/40" : "";
+  // A continuous glow marks whose turn it is (see `turnPulse` in index.css).
+  const active = isActive ? "border-purple-500/70 animate-turn-pulse" : "";
 
   return (
     <div
-      className={`rounded-lg border px-3 flex items-center gap-3 transition-colors ${base} ${active} ${
-        fill ? "h-full min-h-[64px] py-3" : "w-full py-2"
-      }`}
+      className={`w-full rounded-lg border px-3 py-2 flex items-center gap-3 transition-colors shrink-0 ${base} ${active}`}
       style={{ width: "min(560px, 90vw)" }}
     >
       {icon}
@@ -83,7 +74,7 @@ export function PlayerArea({
           {isActive && (
             <span
               key={name}
-              className={`text-base leading-none animate-knight-hop ${
+              className={`text-2xl leading-none animate-knight-hop ${
                 light ? "text-amber-600" : "text-amber-300"
               }`}
               title="Current turn"
@@ -103,22 +94,6 @@ export function PlayerArea({
           )}
         </div>
       </div>
-      {onToggleAutoPlay && (
-        <Tooltip {...HELP.autoplay}>
-          <button
-            onClick={onToggleAutoPlay}
-            className={`shrink-0 text-[11px] font-semibold px-2 py-1 rounded-md border transition-colors ${
-              autoPlay
-                ? "bg-emerald-600 border-emerald-600 text-white"
-                : light
-                  ? "border-slate-500 text-slate-700 hover:bg-slate-400/50"
-                  : "border-slate-600 text-slate-300 hover:bg-slate-700/50"
-            }`}
-          >
-            {autoPlay ? "■ Auto" : "▶ Auto"}
-          </button>
-        </Tooltip>
-      )}
     </div>
   );
 }

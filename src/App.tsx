@@ -243,80 +243,42 @@ export default function App() {
                 onStrictChange={setStrict}
                 onReset={game.reset}
               />
-              <div className="flex items-center gap-2 text-sm shrink-0">
-                {game.result ? (
-                  <span className="font-semibold text-purple-300 capitalize">
-                    {game.result === "checkmate" ? `Checkmate — ${game.winner} wins` : game.result}
-                  </span>
-                ) : (
-                  <>
-                    <span
-                      className={`w-3 h-3 rounded-full border ${
-                        game.sideToMove === "w"
-                          ? "bg-slate-100 border-slate-400"
-                          : "bg-slate-900 border-slate-500"
-                      }`}
-                    />
-                    <span className="text-slate-200">
-                      {game.sideToMove === "w" ? "White" : "Black"} to move
-                    </span>
-                    <span className="text-slate-500 text-xs">
-                      {game.isAiThinking
-                        ? "(opponent thinking…)"
-                        : game.isUserTurn
-                          ? "(you)"
-                          : "(opponent)"}
-                    </span>
-                    {game.inCheck && (
-                      <span className="text-[11px] font-semibold bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded animate-pulse">
-                        Check
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
 
               <div className="w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-2">
-                <div className="flex-1 min-h-0 w-full flex items-end justify-center">
-                  <PlayerArea
-                    fill
-                    name={aiPlayer.name}
-                    subtitle={aiPlayer.mode}
-                    icon={
-                      <span className="inline-flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-slate-800 border border-slate-600 text-xl">
-                        {aiPlayer.icon}
-                      </span>
-                    }
-                    captured={aiCaptured}
-                    capturedColor={userIsWhite ? "w" : "b"}
-                    scoreDiff={aiScore - userScore}
-                    isActive={activePlayer === "ai"}
-                  />
-                </div>
-                <ChessBoard
-                  fen={game.fen}
-                  boardOrientation={userSide}
-                  squareHighlights={game.squareHighlights}
-                  customArrows={game.previewArrows}
-                  isAiThinking={game.isAiThinking}
-                  result={game.result}
-                  winner={game.winner}
-                  onPieceDrop={game.onPieceDrop}
-                  onSquareClick={game.onSquareClick}
+                <PlayerArea
+                  name={aiPlayer.name}
+                  subtitle={aiPlayer.mode}
+                  icon={
+                    <span className="inline-flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-slate-800 border border-slate-600 text-xl">
+                      {aiPlayer.icon}
+                    </span>
+                  }
+                  captured={aiCaptured}
+                  capturedColor={userIsWhite ? "w" : "b"}
+                  scoreDiff={aiScore - userScore}
+                  isActive={activePlayer === "ai"}
                 />
-                <div className="flex-1 min-h-0 w-full flex items-start justify-center">
-                  <PlayerArea
-                    fill
-                    name={profile.name}
-                    icon={<Avatar icon={profile.icon} size={40} />}
-                    captured={userCaptured}
-                    capturedColor={userIsWhite ? "b" : "w"}
-                    scoreDiff={userScore - aiScore}
-                    isActive={activePlayer === "user"}
-                    autoPlay={game.autoPlay}
-                    onToggleAutoPlay={() => game.setAutoPlay(!game.autoPlay)}
+                <div className="flex-1 min-h-0 w-full flex items-center justify-center">
+                  <ChessBoard
+                    fen={game.fen}
+                    boardOrientation={userSide}
+                    squareHighlights={game.squareHighlights}
+                    customArrows={game.previewArrows}
+                    isAiThinking={game.isAiThinking}
+                    result={game.result}
+                    winner={game.winner}
+                    onPieceDrop={game.onPieceDrop}
+                    onSquareClick={game.onSquareClick}
                   />
                 </div>
+                <PlayerArea
+                  name={profile.name}
+                  icon={<Avatar icon={profile.icon} size={40} />}
+                  captured={userCaptured}
+                  capturedColor={userIsWhite ? "b" : "w"}
+                  scoreDiff={userScore - aiScore}
+                  isActive={activePlayer === "user"}
+                />
               </div>
 
               <PreviewToggles
@@ -339,6 +301,8 @@ export default function App() {
               canUndo={game.canUndo}
               canRedo={game.canRedo}
               nextIsAutoPlay={game.nextIsAutoPlay}
+              autoPlay={game.autoPlay}
+              onToggleAutoPlay={() => game.setAutoPlay(!game.autoPlay)}
               onUndo={game.undo}
               onRedo={game.redo}
               review={review}
