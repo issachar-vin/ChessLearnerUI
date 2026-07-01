@@ -150,20 +150,20 @@ export function MoveList({
           )}
           <div ref={bottomRef} />
         </div>
-        <Tooltip {...HELP.nav}>
-          <div className="flex border-t border-slate-700/50">
+        <Tooltip {...HELP.nav} className="w-full">
+          <div className="flex w-full border-t border-slate-700/50">
             <button
               onClick={onUndo}
               disabled={!canUndo}
               aria-label="Back"
-              className="w-1/3 py-2 text-slate-300 hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="w-1/3 py-2 text-center text-slate-300 hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               ◀
             </button>
             <button
               onClick={onToggleAutoPlay}
               aria-label={autoPlay ? "Pause autoplay" : "Autoplay"}
-              className={`w-1/3 py-2 border-l border-slate-700/50 font-semibold ${
+              className={`w-1/3 py-2 text-center border-l border-slate-700/50 font-semibold ${
                 autoPlay
                   ? "bg-emerald-600/90 text-white hover:bg-emerald-600"
                   : "text-emerald-400 hover:bg-emerald-500/15"
@@ -176,7 +176,7 @@ export function MoveList({
               disabled={!canRedo && !nextIsAutoPlay}
               aria-label={nextIsAutoPlay ? "Play autoplay move" : "Forward"}
               title={nextIsAutoPlay ? "Plays the autoplay move (not history)" : undefined}
-              className={`w-1/3 py-2 border-l border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed ${
+              className={`w-1/3 py-2 text-center border-l border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed ${
                 nextIsAutoPlay && !canRedo
                   ? "text-emerald-400 hover:bg-emerald-500/15"
                   : "text-slate-300 hover:bg-slate-700/50"
