@@ -242,12 +242,24 @@ export function useChessGame(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openingId, userSide, freePlay]);
 
-  // Refresh hints/previews whenever it lands on the learner's turn.
+  // Refresh hints/previews on the learner's turn, and for any earlier position
+  // being reviewed (e.g. stepping through a loaded PGN) regardless of side — so
+  // the challenge/etc. arrows are available when studying a move.
   useEffect(() => {
     if (!active || isAiThinking) return;
-    if (snapshot.turn !== userChar) return;
+    const reviewing = snapshot.pointer < snapshot.length;
+    if (snapshot.turn !== userChar && !reviewing) return;
     void fetchAnalysis();
-  }, [snapshot.fen, snapshot.turn, active, isAiThinking, userChar, fetchAnalysis]);
+  }, [
+    snapshot.fen,
+    snapshot.turn,
+    snapshot.pointer,
+    snapshot.length,
+    active,
+    isAiThinking,
+    userChar,
+    fetchAnalysis,
+  ]);
 
   const applyMove = useCallback(
     (from: string, to: string): boolean => {

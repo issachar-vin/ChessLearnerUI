@@ -1,5 +1,11 @@
 import { useEffect, useRef } from "react";
-import type { AnalyzeResponse, HistMove, MoveEntry, ReviewResponse } from "../../types/chess";
+import type {
+  AnalyzeResponse,
+  HistMove,
+  MoveClass,
+  MoveEntry,
+  ReviewResponse,
+} from "../../types/chess";
 import { MOVE_CLASS_META, MOVE_CLASS_ORDER } from "../../lib/moveClass";
 import { MoveIcon } from "../MoveIcon/MoveIcon";
 import { Tooltip } from "../Tooltip/Tooltip";
@@ -56,26 +62,35 @@ export function MoveList({
   }
 
   const cell = (move: HistMove | undefined, index: number) => {
-    if (!move) return <span className="w-16" />;
+    if (!move) return <span className="w-20" />;
     const isCurrent = index + 1 === pointer;
     const cls = review?.moves[index]?.classification;
     const meta = cls && cls !== "unknown" ? MOVE_CLASS_META[cls] : null;
     return (
       <button
         onClick={() => onJump(index + 1)}
-        style={meta ? { backgroundColor: `${meta.color}2b`, color: meta.color } : undefined}
-        className={`w-16 font-mono rounded px-1 flex items-center justify-between gap-1 ${
-          meta
-            ? `font-semibold ${isCurrent ? "ring-1 ring-inset ring-white/60" : ""}`
-            : isCurrent
-              ? "bg-purple-600/40 text-white"
-              : "text-slate-200 hover:bg-slate-700/50"
+        className={`w-20 font-mono rounded px-1 flex items-center gap-1 ${
+          isCurrent ? "bg-purple-600/40" : "hover:bg-slate-700/40"
         }`}
       >
-        <span className="truncate">{move.san}</span>
-        {cls && meta && <MoveIcon cls={cls} size={14} />}
+        {cls && meta && <MoveIcon cls={cls} size={13} />}
+        <span className="font-bold truncate" style={meta ? { color: meta.color } : undefined}>
+          {move.san}
+        </span>
       </button>
     );
+  };
+
+  // Jump to the next move of a given quality, wrapping around — repeated clicks
+  // walk through every move of that class.
+  const cycleClass = (cls: MoveClass) => {
+    if (!review) return;
+    const plies = review.moves
+      .filter((m) => m.classification === cls)
+      .map((m) => m.ply)
+      .sort((a, b) => a - b);
+    if (plies.length === 0) return;
+    onJump(plies.find((p) => p > pointer) ?? plies[0]);
   };
 
   return (
@@ -125,14 +140,19 @@ export function MoveList({
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider p-3 pb-2">
           Move History
         </div>
-        <div className="flex-1 overflow-y-auto px-3 min-h-0">
+        <div className="flex-1 overflow-y-auto px-1 min-h-0">
           {pairs.length === 0 ? (
             <div className="text-slate-600 text-xs text-center py-4">Make your first move</div>
           ) : (
-            <div className="space-y-0.5 text-sm">
-              {pairs.map(({ moveNum, white, black }) => (
-                <div key={moveNum} className="flex items-center gap-2">
-                  <span className="text-slate-600 w-6 text-right shrink-0 text-xs">{moveNum}.</span>
+            <div className="text-sm">
+              {pairs.map(({ moveNum, white, black }, rowIdx) => (
+                <div
+                  key={moveNum}
+                  className={`flex items-center gap-2 px-2 py-0.5 rounded ${
+                    rowIdx % 2 === 1 ? "bg-slate-700/25" : ""
+                  }`}
+                >
+                  <span className="text-slate-500 w-6 text-right shrink-0 text-xs">{moveNum}.</span>
                   {cell(white, (moveNum - 1) * 2)}
                   {cell(black, (moveNum - 1) * 2 + 1)}
                 </div>
@@ -180,7 +200,7 @@ export function MoveList({
       </div>
 
       {review ? (
-        <ReviewSummary review={review} />
+        <ReviewSummary review={review} onCycle={cycleClass} />
       ) : (
         canAnalyze && (
           <button
@@ -196,7 +216,13 @@ export function MoveList({
   );
 }
 
-function ReviewSummary({ review }: { review: ReviewResponse }) {
+function ReviewSummary({
+  review,
+  onCycle,
+}: {
+  review: ReviewResponse;
+  onCycle: (cls: MoveClass) => void;
+}) {
   if (!review.engine_available) {
     return (
       <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/50 text-xs text-slate-400">
@@ -220,16 +246,17 @@ function ReviewSummary({ review }: { review: ReviewResponse }) {
           Black <span className="font-semibold text-white">{review.black_accuracy ?? "—"}%</span>
         </span>
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1">
+      <div className="flex flex-wrap gap-1">
         {counts.map(({ cls, n }) => (
-          <span
+          <button
             key={cls}
-            className="flex items-center gap-1 text-xs"
-            title={MOVE_CLASS_META[cls].label}
+            onClick={() => onCycle(cls)}
+            title={`${MOVE_CLASS_META[cls].label} — click to cycle`}
+            className="flex items-center gap-1 text-xs rounded px-1.5 py-0.5 hover:bg-slate-700/60"
           >
             <MoveIcon cls={cls} size={14} />
             <span className="font-semibold text-slate-200">{n}</span>
-          </span>
+          </button>
         ))}
       </div>
     </div>
