@@ -72,7 +72,8 @@ export function useChessGame(
   strict: boolean,
   userSide: Side,
   lineMoves: MoveEntry[],
-  aiOpeningId: string | null
+  aiOpeningId: string | null,
+  freePlay: boolean
 ) {
   // Refs are the source of truth; `snapshot` is the render projection of them.
   const chessRef = useRef(new Chess());
@@ -82,6 +83,10 @@ export function useChessGame(
   const analysisSeq = useRef(0);
   // Latest move autoplay/▶ would make for the learner (line step, else the hint).
   const autoPlayMoveRef = useRef<string | null>(null);
+  // Set when a PGN was just loaded so the reset effect doesn't wipe it.
+  const pendingLoadRef = useRef(false);
+  // The board is live when an opening is selected or free play / a PGN is loaded.
+  const active = openingId !== null || freePlay;
 
   const [snapshot, setSnapshot] = useState({
     fen: STARTING_FEN,
@@ -130,7 +135,7 @@ export function useChessGame(
   }, []);
 
   const fetchAnalysis = useCallback(async () => {
-    if (!cfg.current.openingId) return;
+    // Called only when the board is active; opening_id may be null (free play).
     const seq = ++analysisSeq.current;
     const moves = historyRef.current.slice(0, pointerRef.current).map((m) => m.uci);
     try {
@@ -191,22 +196,58 @@ export function useChessGame(
     setIsAiThinking(false);
     sync(null);
     // If the learner plays the second-moving side, the opponent opens the game.
-    if (openingId && chessRef.current.turn() !== userChar) {
+    if (active && chessRef.current.turn() !== userChar) {
       void triggerAiMove();
     }
-  }, [openingId, userChar, sync, triggerAiMove]);
+  }, [active, userChar, sync, triggerAiMove]);
+
+  // Load a game (e.g. from a PGN) for replay/analysis: history is set, the board
+  // sits at the start so ◀ ▶ step through it. No AI reply is triggered.
+  const loadGame = useCallback(
+    (uciMoves: string[]) => {
+      const chess = new Chess();
+      const hist: HistMove[] = [];
+      for (const uci of uciMoves) {
+        try {
+          const applied = chess.move({
+            from: uci.slice(0, 2),
+            to: uci.slice(2, 4),
+            promotion: uci.slice(4, 5) || "q",
+          });
+          if (!applied) break;
+          hist.push({ san: applied.san, uci: applied.lan });
+        } catch {
+          break;
+        }
+      }
+      chessRef.current = new Chess();
+      historyRef.current = hist;
+      pointerRef.current = 0;
+      analysisSeq.current++;
+      pendingLoadRef.current = true;
+      setAnalysis(null);
+      setSelectedSquare(null);
+      setIsAiThinking(false);
+      sync(null);
+    },
+    [sync]
+  );
 
   useEffect(() => {
+    if (pendingLoadRef.current) {
+      pendingLoadRef.current = false;
+      return;
+    }
     reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openingId, userSide]);
+  }, [openingId, userSide, freePlay]);
 
   // Refresh hints/previews whenever it lands on the learner's turn.
   useEffect(() => {
-    if (!openingId || isAiThinking) return;
+    if (!active || isAiThinking) return;
     if (snapshot.turn !== userChar) return;
     void fetchAnalysis();
-  }, [snapshot.fen, snapshot.turn, openingId, isAiThinking, userChar, fetchAnalysis]);
+  }, [snapshot.fen, snapshot.turn, active, isAiThinking, userChar, fetchAnalysis]);
 
   const applyMove = useCallback(
     (from: string, to: string): boolean => {
@@ -436,5 +477,6 @@ export function useChessGame(
     redo,
     jumpTo,
     reset,
+    loadGame,
   };
 }

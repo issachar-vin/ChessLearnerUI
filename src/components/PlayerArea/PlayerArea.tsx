@@ -12,6 +12,7 @@ interface Props {
   capturedColor: "w" | "b";
   scoreDiff: number;
   isActive: boolean;
+  fill?: boolean;
   autoPlay?: boolean;
   onToggleAutoPlay?: () => void;
 }
@@ -49,6 +50,7 @@ export function PlayerArea({
   capturedColor,
   scoreDiff,
   isActive,
+  fill,
   autoPlay,
   onToggleAutoPlay,
 }: Props) {
@@ -60,7 +62,9 @@ export function PlayerArea({
 
   return (
     <div
-      className={`w-full rounded-lg border px-3 py-2 flex items-center gap-3 transition-colors ${base} ${active}`}
+      className={`rounded-lg border px-3 flex items-center gap-3 transition-colors ${base} ${active} ${
+        fill ? "h-full min-h-[64px] py-3" : "w-full py-2"
+      }`}
       style={{ width: "min(560px, 90vw)" }}
     >
       {icon}

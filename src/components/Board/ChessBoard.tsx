@@ -62,7 +62,10 @@ export function ChessBoard({
         </div>
       )}
 
-      <div className="rounded-lg overflow-hidden shadow-2xl" style={{ width: "min(560px, 90vw)" }}>
+      <div
+        className="rounded-lg overflow-hidden shadow-2xl"
+        style={{ width: "min(560px, 90vw, 58vh)" }}
+      >
         <Chessboard
           position={fen}
           boardOrientation={boardOrientation}
