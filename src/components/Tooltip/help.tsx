@@ -47,11 +47,10 @@ export const HELP: Record<string, Help> = {
     title: "Move controls",
     body: (
       <p>
-        <span className="text-slate-200">◀</span> step back,{" "}
-        <span className="text-slate-200">▶</span> play/pause autoplay,{" "}
-        <span className="text-slate-200">▶❘</span> step forward. At the latest move the forward
-        button turns green and plays the autoplay move instead of navigating; stepping never
-        triggers an opponent reply — only playing your own colour does.
+        <span className="text-slate-200">◀</span> back a move,{" "}
+        <span className="text-slate-200">▶</span> play through the moves in order,{" "}
+        <span className="text-slate-200">▶❘</span> forward a move. At the end of the line the
+        forward button turns green and plays one move for you (unless the game is over).
       </p>
     ),
   },

@@ -64,7 +64,7 @@ function buildBoard(history: HistMove[], upto: number): Chess {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const AUTOPLAY_DELAY_MS = 450;
+const REPLAY_DELAY_MS = 600;
 
 export function useChessGame(
   openingId: string | null,
@@ -107,7 +107,7 @@ export function useChessGame(
     sparring: false,
     challenge: false,
   });
-  const [autoPlay, setAutoPlay] = useState(false);
+  const [replaying, setReplaying] = useState(false);
 
   // Mirror the latest props into a ref so move handlers never read stale values.
   const cfg = useRef({ openingId, mode, strict, userSide, aiOpeningId, analysis });
@@ -264,6 +264,7 @@ export function useChessGame(
   const applyMove = useCallback(
     (from: string, to: string): boolean => {
       if (isAiThinking) return false;
+      setReplaying(false);
       const movedSide = chessRef.current.turn();
       const { mode: m, strict: s, analysis: a } = cfg.current;
 
@@ -313,18 +314,39 @@ export function useChessGame(
     [sync]
   );
 
-  const undo = useCallback(() => navigate(pointerRef.current - 1), [navigate]);
-  // At the live tip, ▶ plays the move autoplay would make rather than navigating
-  // forward — letting the learner step the opening one move at a time.
+  const undo = useCallback(() => {
+    setReplaying(false);
+    navigate(pointerRef.current - 1);
+  }, [navigate]);
+  // Forward steps through recorded history; at the live tip it plays one autoplay
+  // move instead (unless the game is already over).
   const redo = useCallback(() => {
+    setReplaying(false);
     if (pointerRef.current < historyRef.current.length) {
       navigate(pointerRef.current + 1);
       return;
     }
     const uci = autoPlayMoveRef.current;
-    if (uci) applyMove(uci.slice(0, 2), uci.slice(2, 4));
+    if (uci && !chessRef.current.isGameOver()) applyMove(uci.slice(0, 2), uci.slice(2, 4));
   }, [navigate, applyMove]);
-  const jumpTo = useCallback((ply: number) => navigate(ply), [navigate]);
+  const jumpTo = useCallback(
+    (ply: number) => {
+      setReplaying(false);
+      navigate(ply);
+    },
+    [navigate]
+  );
+  // Play/pause replaying the recorded moves; starting from the end restarts it.
+  const toggleReplay = useCallback(() => {
+    if (replaying) {
+      setReplaying(false);
+      return;
+    }
+    if (historyRef.current.length > 0 && pointerRef.current >= historyRef.current.length) {
+      navigate(0);
+    }
+    setReplaying(true);
+  }, [replaying, navigate]);
 
   const onPieceDrop = useCallback(
     (source: string, target: string) => applyMove(source, target),
@@ -447,16 +469,17 @@ export function useChessGame(
   const atTip = snapshot.pointer >= snapshot.length;
   const nextIsAutoPlay = atTip && isUserTurn && !isAiThinking && !snapshot.result && !!autoPlayMove;
 
-  // Autoplay: keep making the learner's move at the live tip so the opening plays
-  // itself out; toggling off hands control back for a custom move.
+  // Replay: step forward through the recorded history in succession (the current
+  // move highlights as it advances), stopping at the end of the line.
   useEffect(() => {
-    if (!autoPlay || !nextIsAutoPlay || !autoPlayMove) return;
-    const t = setTimeout(
-      () => applyMove(autoPlayMove.slice(0, 2), autoPlayMove.slice(2, 4)),
-      AUTOPLAY_DELAY_MS
-    );
+    if (!replaying || isAiThinking) return;
+    if (snapshot.pointer >= snapshot.length) {
+      setReplaying(false);
+      return;
+    }
+    const t = setTimeout(() => navigate(snapshot.pointer + 1), REPLAY_DELAY_MS);
     return () => clearTimeout(t);
-  }, [autoPlay, nextIsAutoPlay, autoPlayMove, applyMove]);
+  }, [replaying, isAiThinking, snapshot.pointer, snapshot.length, navigate]);
 
   const winner: Side | null =
     snapshot.result === "checkmate" ? (snapshot.turn === "w" ? "black" : "white") : null;
@@ -480,8 +503,8 @@ export function useChessGame(
     setPreviewVisibility,
     canUndo: snapshot.pointer > 0,
     canRedo: snapshot.pointer < snapshot.length,
-    autoPlay,
-    setAutoPlay,
+    replaying,
+    toggleReplay,
     nextIsAutoPlay,
     onPieceDrop,
     onSquareClick,

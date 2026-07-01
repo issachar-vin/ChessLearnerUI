@@ -5,6 +5,7 @@ import type {
   MoveClass,
   MoveEntry,
   ReviewResponse,
+  Side,
 } from "../../types/chess";
 import { MOVE_CLASS_META, MOVE_CLASS_ORDER } from "../../lib/moveClass";
 import { MoveIcon } from "../MoveIcon/MoveIcon";
@@ -21,14 +22,16 @@ interface Props {
   canUndo: boolean;
   canRedo: boolean;
   nextIsAutoPlay: boolean;
-  autoPlay: boolean;
-  onToggleAutoPlay: () => void;
+  replaying: boolean;
+  onToggleReplay: () => void;
   onUndo: () => void;
   onRedo: () => void;
   review: ReviewResponse | null;
   analyzing: boolean;
   canAnalyze: boolean;
   onAnalyze: () => void;
+  reviewSide: Side;
+  onReviewSide: (s: Side) => void;
 }
 
 export function MoveList({
@@ -41,14 +44,16 @@ export function MoveList({
   canUndo,
   canRedo,
   nextIsAutoPlay,
-  autoPlay,
-  onToggleAutoPlay,
+  replaying,
+  onToggleReplay,
   onUndo,
   onRedo,
   review,
   analyzing,
   canAnalyze,
   onAnalyze,
+  reviewSide,
+  onReviewSide,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -81,12 +86,14 @@ export function MoveList({
     );
   };
 
-  // Jump to the next move of a given quality, wrapping around — repeated clicks
-  // walk through every move of that class.
+  // Only your own moves count: white = odd plies, black = even plies.
+  const isMine = (ply: number) => (ply % 2 === 1) === (reviewSide === "white");
+
+  // Jump to the next move of a given quality (yours only), wrapping around.
   const cycleClass = (cls: MoveClass) => {
     if (!review) return;
     const plies = review.moves
-      .filter((m) => m.classification === cls)
+      .filter((m) => m.classification === cls && isMine(m.ply))
       .map((m) => m.ply)
       .sort((a, b) => a - b);
     if (plies.length === 0) return;
@@ -172,15 +179,15 @@ export function MoveList({
               ◀
             </button>
             <button
-              onClick={onToggleAutoPlay}
-              aria-label={autoPlay ? "Pause autoplay" : "Autoplay"}
+              onClick={onToggleReplay}
+              aria-label={replaying ? "Pause" : "Play through moves"}
               className={`w-1/3 py-2 text-center border-l border-slate-700/50 font-semibold ${
-                autoPlay
+                replaying
                   ? "bg-emerald-600/90 text-white hover:bg-emerald-600"
                   : "text-emerald-400 hover:bg-emerald-500/15"
               }`}
             >
-              {autoPlay ? "❚❚" : "▶"}
+              {replaying ? "❚❚" : "▶"}
             </button>
             <button
               onClick={onRedo}
@@ -200,7 +207,12 @@ export function MoveList({
       </div>
 
       {review ? (
-        <ReviewSummary review={review} onCycle={cycleClass} />
+        <ReviewSummary
+          review={review}
+          onCycle={cycleClass}
+          reviewSide={reviewSide}
+          onReviewSide={onReviewSide}
+        />
       ) : (
         canAnalyze && (
           <button
@@ -219,9 +231,13 @@ export function MoveList({
 function ReviewSummary({
   review,
   onCycle,
+  reviewSide,
+  onReviewSide,
 }: {
   review: ReviewResponse;
   onCycle: (cls: MoveClass) => void;
+  reviewSide: Side;
+  onReviewSide: (s: Side) => void;
 }) {
   if (!review.engine_available) {
     return (
@@ -230,34 +246,52 @@ function ReviewSummary({
       </div>
     );
   }
+  const mine = (ply: number) => (ply % 2 === 1) === (reviewSide === "white");
   const counts = MOVE_CLASS_ORDER.map((c) => ({
     cls: c,
-    n: review.moves.filter((m) => m.classification === c).length,
+    n: review.moves.filter((m) => m.classification === c && mine(m.ply)).length,
   })).filter((x) => x.n > 0);
+  const accuracy = reviewSide === "white" ? review.white_accuracy : review.black_accuracy;
 
   return (
     <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/50 space-y-2">
-      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Analysis</div>
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-300">
-          White <span className="font-semibold text-white">{review.white_accuracy ?? "—"}%</span>
-        </span>
-        <span className="text-slate-300">
-          Black <span className="font-semibold text-white">{review.black_accuracy ?? "—"}%</span>
-        </span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          You played
+        </div>
+        <div className="inline-flex rounded-md border border-slate-700/60 overflow-hidden text-[11px]">
+          {(["white", "black"] as Side[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => onReviewSide(s)}
+              className={`px-2 py-0.5 capitalize ${
+                reviewSide === s ? "bg-purple-600/40 text-white" : "text-slate-400"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="text-xs text-slate-300">
+        Accuracy <span className="font-semibold text-white">{accuracy ?? "—"}%</span>
       </div>
       <div className="flex flex-wrap gap-1">
-        {counts.map(({ cls, n }) => (
-          <button
-            key={cls}
-            onClick={() => onCycle(cls)}
-            title={`${MOVE_CLASS_META[cls].label} — click to cycle`}
-            className="flex items-center gap-1 text-xs rounded px-1.5 py-0.5 hover:bg-slate-700/60"
-          >
-            <MoveIcon cls={cls} size={14} />
-            <span className="font-semibold text-slate-200">{n}</span>
-          </button>
-        ))}
+        {counts.length === 0 ? (
+          <span className="text-[11px] text-slate-500">No moves for this side.</span>
+        ) : (
+          counts.map(({ cls, n }) => (
+            <button
+              key={cls}
+              onClick={() => onCycle(cls)}
+              title={`${MOVE_CLASS_META[cls].label} — click to cycle`}
+              className="flex items-center gap-1 text-xs rounded px-1.5 py-0.5 hover:bg-slate-700/60"
+            >
+              <MoveIcon cls={cls} size={14} />
+              <span className="font-semibold text-slate-200">{n}</span>
+            </button>
+          ))
+        )}
       </div>
     </div>
   );

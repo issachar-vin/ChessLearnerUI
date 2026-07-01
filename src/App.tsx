@@ -55,12 +55,17 @@ export default function App() {
 
   const active = selectedOpeningId !== null || freePlay;
 
+  // Board orientation / "your" colour. Tracks userSide, but can be flipped on its
+  // own (e.g. to review a loaded PGN from the other side) without resetting.
+  const [boardSide, setBoardSide] = useState<Side>("white");
+  useEffect(() => setBoardSide(userSide), [userSide]);
+
   // Stale review is cleared whenever the move list changes (a new move, a load,
   // or a reset); navigation keeps it (pointer changes but length doesn't).
   useEffect(() => setReview(null), [game.length]);
 
   const captures = computeCaptures(game.fen);
-  const userIsWhite = userSide === "white";
+  const userIsWhite = boardSide === "white";
   const userCaptured = userIsWhite ? captures.byWhite : captures.byBlack;
   const aiCaptured = userIsWhite ? captures.byBlack : captures.byWhite;
   const userScore = userIsWhite ? captures.whiteScore : captures.blackScore;
@@ -270,7 +275,7 @@ export default function App() {
                 <div className="flex-1 min-h-0 w-full flex items-center justify-center">
                   <ChessBoard
                     fen={game.fen}
-                    boardOrientation={userSide}
+                    boardOrientation={boardSide}
                     squareHighlights={game.squareHighlights}
                     customArrows={game.previewArrows}
                     isAiThinking={game.isAiThinking}
@@ -310,14 +315,16 @@ export default function App() {
               canUndo={game.canUndo}
               canRedo={game.canRedo}
               nextIsAutoPlay={game.nextIsAutoPlay}
-              autoPlay={game.autoPlay}
-              onToggleAutoPlay={() => game.setAutoPlay(!game.autoPlay)}
+              replaying={game.replaying}
+              onToggleReplay={game.toggleReplay}
               onUndo={game.undo}
               onRedo={game.redo}
               review={review}
               analyzing={analyzing}
               canAnalyze={active && game.length > 0}
               onAnalyze={runReview}
+              reviewSide={boardSide}
+              onReviewSide={setBoardSide}
             />
           </div>
           {active && <DrawTracker fen={game.fen} history={game.history.slice(0, game.pointer)} />}
