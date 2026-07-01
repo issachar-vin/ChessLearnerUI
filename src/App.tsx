@@ -10,6 +10,7 @@ import { PgnLoader } from "./components/PgnLoader/PgnLoader";
 import { PlayerArea } from "./components/PlayerArea/PlayerArea";
 import { Avatar } from "./components/Profile/Avatar";
 import { ProfileMenu } from "./components/Profile/ProfileMenu";
+import { Switch } from "./components/Switch/Switch";
 import { Tooltip } from "./components/Tooltip/Tooltip";
 import { HELP } from "./components/Tooltip/help";
 import { useChessGame } from "./hooks/useChessGame";
@@ -24,6 +25,7 @@ import type { Mode, OpeningListItem, ReviewResponse, Side } from "./types/chess"
 export default function App() {
   const [selectedOpeningId, setSelectedOpeningId] = useState<string | null>(null);
   const [aiOpeningId, setAiOpeningId] = useState<string | null>(null);
+  const [aiDefault, setAiDefault] = useState(true);
   const [freePlay, setFreePlay] = useState(false);
   const [userSearch, setUserSearch] = useState("");
   const [aiSearch, setAiSearch] = useState("");
@@ -86,6 +88,14 @@ export default function App() {
   const handleSelectAi = (item: OpeningListItem) => {
     setAiOpeningId(item.id);
     aiLibrary.addRecent(item);
+  };
+
+  // "Default" on = AI plays its mode (no opening bias), panel collapsed.
+  const toggleAiDefault = () => {
+    setAiDefault((d) => {
+      if (!d) setAiOpeningId(null);
+      return !d;
+    });
   };
 
   const enterFreePlay = () => {
@@ -157,38 +167,37 @@ export default function App() {
           </div>
 
           <div className="flex-1 min-h-0 flex flex-col divide-y divide-slate-800/60">
-            <OpeningPanel
-              title="AI opponent"
-              accentText="text-rose-400"
-              accentDot="bg-rose-400"
-              subtitle={aiOpening ? aiOpening.name : "No bias — plays its mode"}
-              headerRight={
+            {aiDefault ? (
+              <div className="shrink-0 px-3 py-3 flex items-center justify-between gap-2">
                 <Tooltip {...HELP.aiOpening}>
-                  {aiOpeningId ? (
-                    <button
-                      onClick={() => setAiOpeningId(null)}
-                      className="text-[11px] px-2 py-1 rounded-md border border-slate-600/60 text-slate-300 hover:bg-slate-700/50"
-                    >
-                      Default ✕
-                    </button>
-                  ) : (
-                    <span className="text-[11px] text-slate-600 cursor-help border-b border-dotted border-slate-600">
-                      bias?
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 cursor-help">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                    <h2 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      AI opponent
+                    </h2>
+                  </div>
                 </Tooltip>
-              }
-              openings={aiVisible}
-              recent={aiLibrary.recent}
-              favorites={aiLibrary.favorites}
-              loading={aiOpenings.loading}
-              selectedId={aiOpeningId}
-              search={aiSearch}
-              onSearchChange={setAiSearch}
-              onSelect={handleSelectAi}
-              isFavorite={aiLibrary.isFavorite}
-              onToggleFavorite={aiLibrary.toggleFavorite}
-            />
+                <Switch checked label="Default" onChange={toggleAiDefault} />
+              </div>
+            ) : (
+              <OpeningPanel
+                title="AI opponent"
+                accentText="text-rose-400"
+                accentDot="bg-rose-400"
+                subtitle={aiOpening ? aiOpening.name : "No bias — plays its mode"}
+                headerRight={<Switch checked={false} label="Default" onChange={toggleAiDefault} />}
+                openings={aiVisible}
+                recent={aiLibrary.recent}
+                favorites={aiLibrary.favorites}
+                loading={aiOpenings.loading}
+                selectedId={aiOpeningId}
+                search={aiSearch}
+                onSearchChange={setAiSearch}
+                onSelect={handleSelectAi}
+                isFavorite={aiLibrary.isFavorite}
+                onToggleFavorite={aiLibrary.toggleFavorite}
+              />
+            )}
             <OpeningPanel
               title="You"
               accentText="text-purple-400"
