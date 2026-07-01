@@ -310,6 +310,7 @@ export default function App() {
               analysis={game.analysis}
               guidedNext={game.guidedNext}
               trainingName={opening?.name ?? null}
+              active={active}
               canUndo={game.canUndo}
               canRedo={game.canRedo}
               nextIsAutoPlay={game.nextIsAutoPlay}

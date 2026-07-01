@@ -19,6 +19,7 @@ interface Props {
   analysis: AnalyzeResponse | null;
   guidedNext: MoveEntry | null;
   trainingName: string | null;
+  active: boolean;
   canUndo: boolean;
   canRedo: boolean;
   nextIsAutoPlay: boolean;
@@ -41,6 +42,7 @@ export function MoveList({
   analysis,
   guidedNext,
   trainingName,
+  active,
   canUndo,
   canRedo,
   nextIsAutoPlay,
@@ -100,9 +102,11 @@ export function MoveList({
     onJump(plies.find((p) => p > pointer) ?? plies[0]);
   };
 
+  const openingName = trainingName ?? analysis?.name ?? null;
+
   return (
     <div className="flex flex-col gap-3 h-full">
-      {(trainingName || analysis?.name) && (
+      {active && (
         <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/50">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-purple-400 text-xs font-semibold uppercase tracking-wider">
@@ -114,32 +118,62 @@ export function MoveList({
               </span>
             )}
           </div>
-          {trainingName && <div className="text-white font-semibold text-sm">{trainingName}</div>}
-          {analysis?.name && analysis.name !== trainingName && (
-            <div className="text-slate-400 text-xs mt-1">
-              Current:{" "}
-              {analysis.eco && (
-                <Tooltip {...HELP.eco}>
-                  <span className="font-mono font-semibold text-slate-300 cursor-help border-b border-dotted border-slate-600">
-                    {analysis.eco}
-                  </span>
-                </Tooltip>
-              )}{" "}
-              {analysis.name}
-            </div>
-          )}
+          <div className="h-5 flex items-center">
+            {openingName ? (
+              <span className="text-white font-semibold text-sm truncate">{openingName}</span>
+            ) : analysis ? (
+              <span className="text-slate-500 text-sm">Unnamed line</span>
+            ) : (
+              <Band className="w-2/3 h-3.5" />
+            )}
+          </div>
+          <div className="text-slate-400 text-xs mt-1 h-4 truncate">
+            {trainingName && analysis?.name && analysis.name !== trainingName ? (
+              <>
+                Current:{" "}
+                {analysis.eco && (
+                  <Tooltip {...HELP.eco}>
+                    <span className="font-mono font-semibold text-slate-300 cursor-help border-b border-dotted border-slate-600">
+                      {analysis.eco}
+                    </span>
+                  </Tooltip>
+                )}{" "}
+                {analysis.name}
+              </>
+            ) : null}
+          </div>
         </div>
       )}
 
-      {analysis && (
+      {active && (
         <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/50 space-y-1.5">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
             Next move
           </div>
-          <Hint label="Recommended" san={analysis.recommended.san} color="#10b981" />
-          <Hint label="Guided" san={guidedNext?.san ?? null} color="#3b82f6" />
-          <Hint label="Sparring" san={analysis.previews.sparring.san} color="#f59e0b" />
-          <Hint label="Challenge" san={analysis.previews.challenge.san} color="#a855f7" />
+          <HintRow
+            label="Recommended"
+            san={analysis?.recommended.san ?? null}
+            color="#10b981"
+            loading={!analysis}
+          />
+          <HintRow
+            label="Guided"
+            san={guidedNext?.san ?? null}
+            color="#3b82f6"
+            loading={!analysis}
+          />
+          <HintRow
+            label="Sparring"
+            san={analysis?.previews.sparring.san ?? null}
+            color="#f59e0b"
+            loading={!analysis}
+          />
+          <HintRow
+            label="Challenge"
+            san={analysis?.previews.challenge.san ?? null}
+            color="#a855f7"
+            loading={!analysis}
+          />
         </div>
       )}
 
@@ -297,13 +331,31 @@ function ReviewSummary({
   );
 }
 
-function Hint({ label, san, color }: { label: string; san: string | null; color: string }) {
-  if (!san) return null;
+function Band({ className = "" }: { className?: string }) {
+  return <span className={`inline-block rounded bg-slate-700 animate-pulse ${className}`} />;
+}
+
+function HintRow({
+  label,
+  san,
+  color,
+  loading,
+}: {
+  label: string;
+  san: string | null;
+  color: string;
+  loading: boolean;
+}) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 h-4">
       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-      <span className="text-slate-300 text-xs">
-        {label}: <span className="text-white font-mono font-semibold">{san}</span>
+      <span className="text-slate-300 text-xs flex items-center gap-1">
+        {label}:{" "}
+        {loading ? (
+          <Band className="w-9 h-3" />
+        ) : (
+          <span className="text-white font-mono font-semibold">{san ?? "—"}</span>
+        )}
       </span>
     </div>
   );
