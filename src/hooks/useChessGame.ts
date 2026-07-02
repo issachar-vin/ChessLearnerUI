@@ -65,6 +65,7 @@ function buildBoard(history: HistMove[], upto: number): Chess {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const REPLAY_DELAY_MS = 600;
+const AUTOPLAY_DELAY_MS = 450;
 
 export function useChessGame(
   openingId: string | null,
@@ -108,6 +109,14 @@ export function useChessGame(
     challenge: false,
   });
   const [replaying, setReplaying] = useState(false);
+  // When on, the learner's move is played automatically at the live tip so the
+  // opening runs itself out (see the effect below).
+  const [autoPlay, setAutoPlay] = useState(false);
+  // A game loaded from a PGN is for review, so autoplay never runs into it.
+  // Cleared once the learner takes over with a move of their own.
+  const [loadedFromPgn, setLoadedFromPgn] = useState(false);
+  const loadedFromPgnRef = useRef(false);
+  loadedFromPgnRef.current = loadedFromPgn;
 
   // Mirror the latest props into a ref so move handlers never read stale values.
   const cfg = useRef({ openingId, mode, strict, userSide, aiOpeningId, analysis });
@@ -194,6 +203,8 @@ export function useChessGame(
     setAnalysis(null);
     setSelectedSquare(null);
     setIsAiThinking(false);
+    setLoadedFromPgn(false);
+    setAutoPlay(false);
     sync(null);
     // If the learner plays the second-moving side, the opponent opens the game.
     if (active && chessRef.current.turn() !== userChar) {
@@ -228,6 +239,7 @@ export function useChessGame(
       setAnalysis(null);
       setSelectedSquare(null);
       setIsAiThinking(false);
+      setLoadedFromPgn(true);
       sync(null);
     },
     [sync]
@@ -290,6 +302,7 @@ export function useChessGame(
       analysisSeq.current++;
       setSelectedSquare(null);
       setAnalysis(null);
+      setLoadedFromPgn(false);
       sync(applied.lan);
 
       // The opponent only replies when the learner moves their own colour.
@@ -327,7 +340,9 @@ export function useChessGame(
       return;
     }
     const uci = autoPlayMoveRef.current;
-    if (uci && !chessRef.current.isGameOver()) applyMove(uci.slice(0, 2), uci.slice(2, 4));
+    if (uci && !chessRef.current.isGameOver() && !loadedFromPgnRef.current) {
+      applyMove(uci.slice(0, 2), uci.slice(2, 4));
+    }
   }, [navigate, applyMove]);
   const jumpTo = useCallback(
     (ply: number) => {
@@ -467,7 +482,43 @@ export function useChessGame(
   }, [guidedNext, analysis, snapshot.fen]);
   autoPlayMoveRef.current = autoPlayMove;
   const atTip = snapshot.pointer >= snapshot.length;
-  const nextIsAutoPlay = atTip && isUserTurn && !isAiThinking && !snapshot.result && !!autoPlayMove;
+  const nextIsAutoPlay =
+    atTip && isUserTurn && !isAiThinking && !snapshot.result && !loadedFromPgn && !!autoPlayMove;
+
+  // The first ply in the recorded game where the position becomes terminal, so
+  // the move list can mark where the game ended (moves may continue after it).
+  const endgame = useMemo(() => {
+    const chess = new Chess();
+    for (let i = 0; i < historyRef.current.length; i++) {
+      const { from, to } = uciFromTo(historyRef.current[i].uci);
+      chess.move({ from, to, promotion: historyRef.current[i].uci.slice(4, 5) || "q" });
+      if (chess.isGameOver()) {
+        let result: GameResult = null;
+        if (chess.isCheckmate()) result = "checkmate";
+        else if (chess.isStalemate()) result = "stalemate";
+        else if (chess.isDraw()) result = "draw";
+        return { ply: i + 1, result };
+      }
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshot.length]);
+
+  // A finished game turns autoplay off so the toggle doesn't linger past the end.
+  useEffect(() => {
+    if (snapshot.result) setAutoPlay(false);
+  }, [snapshot.result]);
+
+  // Autoplay: keep making the learner's move at the live tip so the opening plays
+  // itself out; toggling off hands control back for a custom move.
+  useEffect(() => {
+    if (!autoPlay || !nextIsAutoPlay || !autoPlayMove) return;
+    const t = setTimeout(
+      () => applyMove(autoPlayMove.slice(0, 2), autoPlayMove.slice(2, 4)),
+      AUTOPLAY_DELAY_MS
+    );
+    return () => clearTimeout(t);
+  }, [autoPlay, nextIsAutoPlay, autoPlayMove, applyMove]);
 
   // Replay: step forward through the recorded history in succession (the current
   // move highlights as it advances), stopping at the end of the line.
@@ -506,6 +557,10 @@ export function useChessGame(
     replaying,
     toggleReplay,
     nextIsAutoPlay,
+    autoPlay,
+    setAutoPlay,
+    loadedFromPgn,
+    endgame,
     onPieceDrop,
     onSquareClick,
     undo,

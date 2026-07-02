@@ -10,6 +10,8 @@ interface Props {
   capturedColor: "w" | "b";
   scoreDiff: number;
   isActive: boolean;
+  autoPlay?: boolean;
+  onToggleAutoPlay?: () => void;
 }
 
 function CapturedRow({
@@ -45,6 +47,8 @@ export function PlayerArea({
   capturedColor,
   scoreDiff,
   isActive,
+  autoPlay,
+  onToggleAutoPlay,
 }: Props) {
   // White pieces read fine on the dark card; the side capturing black pieces gets
   // a light card background so they stay legible, with text recoloured to match.
@@ -83,6 +87,22 @@ export function PlayerArea({
           )}
         </div>
       </div>
+      {onToggleAutoPlay && (
+        <button
+          onClick={onToggleAutoPlay}
+          aria-label={autoPlay ? "Stop autoplay" : "Autoplay your moves"}
+          title={autoPlay ? "Stop autoplay" : "Autoplay your moves"}
+          className={`shrink-0 rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors ${
+            autoPlay
+              ? "bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500"
+              : light
+                ? "border-slate-400 text-slate-700 hover:bg-slate-200"
+                : "border-slate-600 text-slate-300 hover:bg-slate-700"
+          }`}
+        >
+          {autoPlay ? "❚❚ Auto" : "▶ Auto"}
+        </button>
+      )}
     </div>
   );
 }

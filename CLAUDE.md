@@ -5,17 +5,20 @@ against the backend AI.
 
 ## Layout
 
-Full-bleed three-pane layout in [src/App.tsx](src/App.tsx) (columns flush to the screen edges):
-- **Left** — a **Free play / Load PGN** toolbar over two stacked `OpeningPanel`s (top = **AI
-  opponent**, bottom = **You**), each with Recent / Favorites / Search tabs. The two keep
-  **separate** recent/favorite/search state (`useOpeningLibrary("ai" | "user")`, namespaced
-  localStorage; two `useOpenings` instances). The user panel hosts the White/Black side
-  toggle; the AI panel lists the opposite colour's lines and a **Default ✕** to clear the bias.
+Full-bleed three-pane layout in [src/App.tsx](src/App.tsx) (no top banner — the panes run to
+the top of the screen, columns flush to the edges):
+- **Left** — the **logo + "Chess Bro" title**, then a **Free play / Load PGN** toolbar over two
+  stacked `OpeningPanel`s (top = **AI opponent**, bottom = **You**), each with Recent /
+  Favorites / Search tabs. The two keep **separate** recent/favorite/search state
+  (`useOpeningLibrary("ai" | "user")`, namespaced localStorage; two `useOpenings` instances).
+  The user panel hosts the White/Black side toggle; the AI panel lists the opposite colour's
+  lines and a **Default ✕** to clear the bias.
 - **Center** — `Controls` (mode / strict / reset), the turn status, a `PlayerArea` above (AI)
-  and below (you) that **flex-fill the column height** (`fill` prop), the `ChessBoard`, and
-  `PreviewToggles` at the bottom.
-- **Right** — `MoveList` (opening name, next-move hints, clickable history with per-move
-  analysis badges, the ◀ ▶ nav bar, and the Analyse button / accuracy panel) and `DrawTracker`.
+  and below (you) that **flex-fill the column height**, the `ChessBoard`, and `PreviewToggles`
+  at the bottom. The **you** `PlayerArea` also hosts the **Autoplay toggle** (see Modes below).
+- **Right** — the **`ProfileMenu`** (name + avatar dropdown) at the top, then `MoveList`
+  (opening name, next-move hints, clickable history with per-move analysis badges and a
+  game-end divider, the ◀ ▶ nav bar, and the Analyse button / accuracy panel) and `DrawTracker`.
 
 The board is shown whenever the game is **active** — an opening is selected, **Free play** is
 on, or a **PGN** was loaded (`PgnLoader` parses it with chess.js → `game.loadGame`).
@@ -67,10 +70,19 @@ stale values.
   at the start for ◀ ▶ replay; a `pendingLoadRef` stops the reset effect wiping a just-loaded
   game. **Game review**: `App` calls `/api/game/review` and passes per-move classifications to
   `MoveList` for badges; the result is cleared whenever the move list length changes.
-- **Autoplay** (`autoPlay`/`setAutoPlay`): at the live tip on the learner's turn it plays the
-  learner's move automatically (`guidedNext` step, else `analysis.recommended`) so the opening
-  runs itself out. The same move backs `nextIsAutoPlay`: with autoplay off, the ▶ button at the
-  tip plays that move (turning green) instead of navigating history.
+- **Autoplay** (`autoPlay`/`setAutoPlay`, toggled from the **you** `PlayerArea` button): at the
+  live tip on the learner's turn it plays the learner's move automatically (`guidedNext` step,
+  else `analysis.recommended`) so the opening runs itself out. The toggle is hidden while a PGN
+  is loaded (`loadedFromPgn`) — a loaded game is for review — and is switched **off** whenever
+  the game ends or is reset. The same move backs `nextIsAutoPlay`: the MoveList **▶❘** forward
+  button plays it at the tip (green when it's a move for you, white when it just steps recorded
+  history). `loadedFromPgn` is set by `loadGame` and cleared once the learner makes their own
+  move or the game resets. The MoveList nav bar's centre **▶/❚❚** is one play/pause control
+  (`onTogglePlay`): it shows **❚❚** while either a history replay or autoplay is running, and a
+  click pauses whichever is active (else it starts replaying recorded moves).
+- **Game-end marker** (`endgame`): the hook scans recorded history for the first ply that is
+  terminal and returns `{ ply, result }`; `MoveList` renders a divider row there so any moves
+  played after checkmate/stalemate/draw are visibly post-game (moves after game-over are allowed).
 
 **Highlights are derived, never stored** — `squareHighlights` (selection/legal/last-move)
 and `previewArrows` are `useMemo`. Don't reintroduce a stored-highlights setter.

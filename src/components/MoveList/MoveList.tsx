@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import type {
   AnalyzeResponse,
   HistMove,
@@ -7,11 +7,17 @@ import type {
   ReviewResponse,
   Side,
 } from "../../types/chess";
-import { ARROW_COLORS, type PreviewVisibility } from "../../hooks/useChessGame";
+import { ARROW_COLORS, type GameResult, type PreviewVisibility } from "../../hooks/useChessGame";
 import { MOVE_CLASS_META, MOVE_CLASS_ORDER } from "../../lib/moveClass";
 import { MoveIcon } from "../MoveIcon/MoveIcon";
 import { Tooltip } from "../Tooltip/Tooltip";
 import { HELP } from "../Tooltip/help";
+
+const END_LABEL: Record<Exclude<GameResult, null>, string> = {
+  checkmate: "Checkmate — game over",
+  stalemate: "Stalemate — game over",
+  draw: "Draw — game over",
+};
 
 interface Props {
   history: HistMove[];
@@ -25,8 +31,9 @@ interface Props {
   canUndo: boolean;
   canRedo: boolean;
   nextIsAutoPlay: boolean;
-  replaying: boolean;
-  onToggleReplay: () => void;
+  endgame: { ply: number; result: GameResult } | null;
+  playing: boolean;
+  onTogglePlay: () => void;
   onUndo: () => void;
   onRedo: () => void;
   review: ReviewResponse | null;
@@ -49,8 +56,9 @@ export function MoveList({
   canUndo,
   canRedo,
   nextIsAutoPlay,
-  replaying,
-  onToggleReplay,
+  endgame,
+  playing,
+  onTogglePlay,
   onUndo,
   onRedo,
   review,
@@ -183,19 +191,29 @@ export function MoveList({
           ) : (
             <div className="text-sm">
               {pairs.map(({ moveNum, white, black }, rowIdx) => (
-                <div
-                  key={moveNum}
-                  ref={
-                    pointer > 0 && Math.ceil(pointer / 2) === moveNum ? currentRowRef : undefined
-                  }
-                  className={`flex items-center gap-2 px-2 py-0.5 rounded ${
-                    rowIdx % 2 === 1 ? "bg-slate-700/25" : ""
-                  }`}
-                >
-                  <span className="text-slate-500 w-6 text-right shrink-0 text-xs">{moveNum}.</span>
-                  {cell(white, (moveNum - 1) * 2)}
-                  {cell(black, (moveNum - 1) * 2 + 1)}
-                </div>
+                <Fragment key={moveNum}>
+                  <div
+                    ref={
+                      pointer > 0 && Math.ceil(pointer / 2) === moveNum ? currentRowRef : undefined
+                    }
+                    className={`flex items-center gap-2 px-2 py-0.5 rounded ${
+                      rowIdx % 2 === 1 ? "bg-slate-700/25" : ""
+                    }`}
+                  >
+                    <span className="text-slate-500 w-6 text-right shrink-0 text-xs">
+                      {moveNum}.
+                    </span>
+                    {cell(white, (moveNum - 1) * 2)}
+                    {cell(black, (moveNum - 1) * 2 + 1)}
+                  </div>
+                  {endgame && endgame.result && Math.ceil(endgame.ply / 2) === moveNum && (
+                    <div className="flex items-center gap-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-amber-400/80">
+                      <span className="flex-1 h-px bg-amber-500/30" />
+                      {END_LABEL[endgame.result]}
+                      <span className="flex-1 h-px bg-amber-500/30" />
+                    </div>
+                  )}
+                </Fragment>
               ))}
             </div>
           )}
@@ -211,23 +229,23 @@ export function MoveList({
               ◀
             </button>
             <button
-              onClick={onToggleReplay}
-              aria-label={replaying ? "Pause" : "Play through moves"}
+              onClick={onTogglePlay}
+              aria-label={playing ? "Pause" : "Play through moves"}
               className={`w-1/3 py-2 text-center border-l border-slate-700/50 font-semibold ${
-                replaying
+                playing
                   ? "bg-emerald-600/90 text-white hover:bg-emerald-600"
                   : "text-emerald-400 hover:bg-emerald-500/15"
               }`}
             >
-              {replaying ? "❚❚" : "▶"}
+              {playing ? "❚❚" : "▶"}
             </button>
             <button
               onClick={onRedo}
               disabled={!canRedo && !nextIsAutoPlay}
-              aria-label={nextIsAutoPlay ? "Play autoplay move" : "Forward"}
-              title={nextIsAutoPlay ? "Plays the autoplay move (not history)" : undefined}
+              aria-label={nextIsAutoPlay ? "Play your next move" : "Forward"}
+              title={nextIsAutoPlay ? "Plays your next move (not history)" : undefined}
               className={`w-1/3 py-2 text-center border-l border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed ${
-                nextIsAutoPlay && !canRedo
+                nextIsAutoPlay
                   ? "text-emerald-400 hover:bg-emerald-500/15"
                   : "text-slate-300 hover:bg-slate-700/50"
               }`}
