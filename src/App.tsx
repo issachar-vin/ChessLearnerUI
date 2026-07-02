@@ -103,6 +103,13 @@ export default function App() {
     });
   };
 
+  // One play/pause control: pause whatever is auto-advancing (autoplay or a
+  // history replay), otherwise start replaying the recorded moves.
+  const onTogglePlay = () => {
+    if (game.autoPlay) game.setAutoPlay(false);
+    else game.toggleReplay();
+  };
+
   const enterFreePlay = () => {
     setSelectedOpeningId(null);
     setFreePlay(true);
@@ -136,21 +143,19 @@ export default function App() {
         }}
       />
 
-      <header className="border-b border-slate-800/60 px-6 py-4 shrink-0">
-        <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Chess Bro" className="h-10 w-auto select-none" />
-          <div>
-            <h1 className="font-playfair text-xl font-bold text-white tracking-tight">Chess Bro</h1>
-            <p className="text-xs text-slate-500">Master openings, counters, and replies</p>
-          </div>
-          <div className="ml-auto">
-            <ProfileMenu profile={profile} onSave={save} />
-          </div>
-        </div>
-      </header>
-
       <main className="flex-1 min-h-0 flex w-full">
         <aside className="w-72 shrink-0 flex flex-col min-h-0 border-r border-slate-800/60 bg-slate-900/30">
+          <div className="flex items-center gap-2 px-3 py-3 border-b border-slate-800/60 shrink-0">
+            <img src="/logo.png" alt="Chess Bro" className="h-9 w-auto select-none" />
+            <div className="min-w-0">
+              <h1 className="font-playfair text-lg font-bold text-white tracking-tight leading-tight">
+                Chess Bro
+              </h1>
+              <p className="text-[10px] text-slate-500 truncate">
+                Master openings, counters, and replies
+              </p>
+            </div>
+          </div>
           <div className="p-2 flex gap-2 border-b border-slate-800/60 shrink-0">
             <button
               onClick={enterFreePlay}
@@ -290,6 +295,10 @@ export default function App() {
                   capturedColor={userIsWhite ? "b" : "w"}
                   scoreDiff={userScore - aiScore}
                   isActive={activePlayer === "user"}
+                  autoPlay={game.autoPlay}
+                  onToggleAutoPlay={
+                    game.loadedFromPgn ? undefined : () => game.setAutoPlay(!game.autoPlay)
+                  }
                 />
               </div>
 
@@ -302,6 +311,9 @@ export default function App() {
         </div>
 
         <aside className="w-72 shrink-0 flex flex-col min-h-0 overflow-hidden border-l border-slate-800/60 bg-slate-900/30 p-4 gap-3">
+          <div className="shrink-0 flex justify-end">
+            <ProfileMenu profile={profile} onSave={save} />
+          </div>
           <div className="flex-1 min-h-0">
             <MoveList
               history={game.history}
@@ -315,8 +327,9 @@ export default function App() {
               canUndo={game.canUndo}
               canRedo={game.canRedo}
               nextIsAutoPlay={game.nextIsAutoPlay}
-              replaying={game.replaying}
-              onToggleReplay={game.toggleReplay}
+              endgame={game.endgame}
+              playing={game.replaying || game.autoPlay}
+              onTogglePlay={onTogglePlay}
               onUndo={game.undo}
               onRedo={game.redo}
               review={review}
